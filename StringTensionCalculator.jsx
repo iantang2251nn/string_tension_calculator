@@ -556,7 +556,7 @@ export default function StringTensionCalculator() {
               <h2 className="text-lg font-semibold text-white">Per-string breakdown</h2>
               <p className="text-sm text-[#888]">Unit weight resolves via embedded lookup first, then power-law fallback.</p>
             </div>
-            <p className="text-xs text-[#6b7280]">Swipe horizontally on mobile. Rows are highlighted when tension is more than 15% from the set mean.</p>
+            <p className="text-xs text-[#6b7280]">Swipe horizontally on mobile. Rows are highlighted when tension is more than 10% from the set mean.</p>
           </div>
 
           <div className="-mx-3 overflow-x-auto px-3 sm:mx-0 sm:px-0">
@@ -576,9 +576,9 @@ export default function StringTensionCalculator() {
                 {rows.map((row) => {
                   const variance = meanTension ? (row.tensionLbs - meanTension) / meanTension : 0;
                   const toneClass =
-                    variance > 0.15
+                    variance > 0.1
                       ? "bg-amber-500/6"
-                      : variance < -0.15
+                      : variance < -0.1
                         ? "bg-slate-400/6"
                         : "bg-transparent";
                   const barWidth = maxTension ? `${(row.tensionLbs / maxTension) * 100}%` : "0%";
