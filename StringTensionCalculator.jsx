@@ -1,10 +1,11 @@
 import React, { useReducer } from "react";
 
-const STRING_COUNT_OPTIONS = [6, 7, 8];
+const STRING_COUNT_OPTIONS = [6, 7, 8, 9];
 const DEFAULT_PRESET_BY_COUNT = {
   6: "standard-6",
   7: "standard-7",
   8: "standard-8",
+  9: "standard-9",
 };
 
 const NOTE_LABELS = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
@@ -153,12 +154,30 @@ const TUNING_PRESETS = {
     { key: "drop-e-8", label: "Drop E", notes: ["E4", "B3", "G3", "D3", "A2", "E2", "B1", "E1"] },
     { key: "f-standard-8", label: "F Standard", notes: ["Eb4", "Bb3", "Gb3", "Db3", "Ab2", "Eb2", "Bb1", "F1"] },
   ],
+  9: [
+    {
+      key: "standard-9",
+      label: "Standard",
+      notes: ["E4", "B3", "G3", "D3", "A2", "E2", "B1", "F#1", "C#1"],
+    },
+    {
+      key: "drop-b-9",
+      label: "Drop B",
+      notes: ["E4", "B3", "G3", "D3", "A2", "E2", "B1", "F#1", "B0"],
+    },
+    {
+      key: "b-standard-9",
+      label: "B Standard",
+      notes: ["D4", "A3", "F3", "C3", "G2", "D2", "A1", "E1", "B0"],
+    },
+  ],
 };
 
 const DEFAULT_GAUGES = {
   6: ["10", "13", "17", "26", "36", "46"],
-  7: ["10", "13", "17", "26", "36", "46", "59"],
-  8: ["10", "13", "17", "26", "36", "46", "59", "74"],
+  7: ["9.5", "12", "16", "24", "34", "44", "56"],
+  8: ["9.5", "12", "16", "24", "34", "44", "56", "74"],
+  9: ["9", "11", "16", "24", "32", "42", "54", "75", "90"],
 };
 
 function noteToMidi(note) {
@@ -378,6 +397,22 @@ function summarySplit(row, stringCount) {
     return { treble: 0, bass: row.tensionLbs };
   }
 
+  if (stringCount === 8) {
+    return row.index < 4 ? { treble: row.tensionLbs, bass: 0 } : { treble: 0, bass: row.tensionLbs };
+  }
+
+  if (stringCount === 9) {
+    if (row.index < 4) {
+      return { treble: row.tensionLbs, bass: 0 };
+    }
+
+    if (row.index === 4) {
+      return { treble: row.tensionLbs / 2, bass: row.tensionLbs / 2 };
+    }
+
+    return { treble: 0, bass: row.tensionLbs };
+  }
+
   return row.index < 4 ? { treble: row.tensionLbs, bass: 0 } : { treble: 0, bass: row.tensionLbs };
 }
 
@@ -476,6 +511,8 @@ export default function StringTensionCalculator() {
             <span className="block text-xs uppercase tracking-[0.18em] text-[#888]">Treble Scale (in)</span>
             <input
               type="number"
+              min="20"
+              max="40"
               step="0.01"
               value={state.scaleTreble}
               onChange={(event) => dispatch({ type: "setScale", key: "scaleTreble", value: event.target.value })}
@@ -487,6 +524,8 @@ export default function StringTensionCalculator() {
             <span className="block text-xs uppercase tracking-[0.18em] text-[#888]">Bass Scale (in)</span>
             <input
               type="number"
+              min="20"
+              max="40"
               step="0.01"
               value={state.scaleBass}
               onChange={(event) => dispatch({ type: "setScale", key: "scaleBass", value: event.target.value })}
