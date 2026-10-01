@@ -20,6 +20,8 @@ import {
   parseOptionalNumber,
   resolveScaleBassForCount,
   resolveUnitWeight,
+  stepGaugeInput,
+  stepMidi,
   toKg,
 } from "./src/lib/tension.js";
 
@@ -124,6 +126,29 @@ function summarySplit(row, stringCount) {
   }
 
   return row.index < 4 ? { treble: row.tensionLbs, bass: 0 } : { treble: 0, bass: row.tensionLbs };
+}
+
+function StepButtons({ label, onStep }) {
+  return (
+    <div className="flex shrink-0 flex-col overflow-hidden rounded-lg border border-[#2a2a2a]">
+      <button
+        type="button"
+        aria-label={`Increase ${label}`}
+        onClick={() => onStep(1)}
+        className="flex flex-1 items-center justify-center bg-[#171717] px-1.5 font-mono text-xs leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6]"
+      >
+        +
+      </button>
+      <button
+        type="button"
+        aria-label={`Decrease ${label}`}
+        onClick={() => onStep(-1)}
+        className="flex flex-1 items-center justify-center border-t border-[#2a2a2a] bg-[#171717] px-1.5 font-mono text-xs leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6]"
+      >
+        −
+      </button>
+    </div>
+  );
 }
 
 export default function StringTensionCalculator() {
@@ -297,44 +322,70 @@ export default function StringTensionCalculator() {
                     <tr key={row.stringNumber} className={toneClass}>
                       <td className="px-3 py-3 font-mono text-[#d4d4d4] sm:px-4">{row.stringNumber}</td>
                       <td className="px-3 py-3 sm:px-4">
-                        <div className="min-w-[6rem] sm:min-w-[7rem]">
-                          <select
-                            value={row.midi}
-                            onChange={(event) =>
-                              dispatch({
-                                type: "setStringField",
-                                index: row.index,
-                                key: "midi",
-                                value: Number(event.target.value),
-                              })
-                            }
-                            className="w-full rounded-xl border border-[#2a2a2a] bg-[#111111] px-2.5 py-3 text-sm text-white outline-none transition focus:border-[#14b8a6] sm:px-3 sm:py-2"
-                          >
-                            {NOTE_OPTIONS.map((note) => (
-                              <option key={note.midi} value={note.midi}>
-                                {note.label}
-                              </option>
-                            ))}
-                          </select>
+                        <div className="min-w-[7.5rem] sm:min-w-[8.5rem]">
+                          <div className="flex items-stretch gap-1">
+                            <select
+                              value={row.midi}
+                              onChange={(event) =>
+                                dispatch({
+                                  type: "setStringField",
+                                  index: row.index,
+                                  key: "midi",
+                                  value: Number(event.target.value),
+                                })
+                              }
+                              className="w-full min-w-0 flex-1 rounded-xl border border-[#2a2a2a] bg-[#111111] px-2.5 py-3 text-sm text-white outline-none transition focus:border-[#14b8a6] sm:px-3 sm:py-2"
+                            >
+                              {NOTE_OPTIONS.map((note) => (
+                                <option key={note.midi} value={note.midi}>
+                                  {note.label}
+                                </option>
+                              ))}
+                            </select>
+                            <StepButtons
+                              label={`string ${row.stringNumber} pitch`}
+                              onStep={(direction) =>
+                                dispatch({
+                                  type: "setStringField",
+                                  index: row.index,
+                                  key: "midi",
+                                  value: stepMidi(row.midi, direction),
+                                })
+                              }
+                            />
+                          </div>
                           <p className="mt-1 font-mono text-xs text-[#6b7280]">{formatNumber(row.frequency, 2)} Hz</p>
                         </div>
                       </td>
                       <td className="px-3 py-3 sm:px-4">
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          step={gaugeStepForString(row.index)}
-                          value={row.gaugeInput}
-                          onChange={(event) =>
-                            dispatch({
-                              type: "setStringField",
-                              index: row.index,
-                              key: "gaugeInput",
-                              value: event.target.value,
-                            })
-                          }
-                          className="w-20 rounded-xl border border-[#2a2a2a] bg-[#111111] px-2.5 py-3 font-mono text-sm text-white outline-none transition focus:border-[#14b8a6] sm:w-24 sm:px-3 sm:py-2"
-                        />
+                        <div className="flex items-stretch gap-1">
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            step={gaugeStepForString(row.index)}
+                            value={row.gaugeInput}
+                            onChange={(event) =>
+                              dispatch({
+                                type: "setStringField",
+                                index: row.index,
+                                key: "gaugeInput",
+                                value: event.target.value,
+                              })
+                            }
+                            className="w-20 rounded-xl border border-[#2a2a2a] bg-[#111111] px-2.5 py-3 font-mono text-sm text-white outline-none transition [appearance:textfield] focus:border-[#14b8a6] sm:w-24 sm:px-3 sm:py-2 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                          />
+                          <StepButtons
+                            label={`string ${row.stringNumber} gauge`}
+                            onStep={(direction) =>
+                              dispatch({
+                                type: "setStringField",
+                                index: row.index,
+                                key: "gaugeInput",
+                                value: stepGaugeInput(row.gaugeInput, direction, row.index),
+                              })
+                            }
+                          />
+                        </div>
                         <p className="mt-1 font-mono text-xs text-[#6b7280]">{formatGaugeDisplay(row.gaugeThousandths)}</p>
                       </td>
                       <td className="px-3 py-3 sm:px-4">

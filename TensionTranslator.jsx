@@ -22,6 +22,8 @@ import {
   recommendGauge,
   resolveScaleBassForCount,
   resolveUnitWeight,
+  stepGaugeInput,
+  stepMidi,
   toKg,
 } from "./src/lib/tension.js";
 
@@ -442,46 +444,97 @@ function SidePanel({
   );
 }
 
+function StepButtons({ label, onStep }) {
+  return (
+    <div className="flex shrink-0 flex-col overflow-hidden rounded-md border border-[#2a2a2a]">
+      <button
+        type="button"
+        aria-label={`Increase ${label}`}
+        onClick={() => onStep(1)}
+        className="flex flex-1 items-center justify-center bg-[#171717] px-1.5 font-mono text-xs leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6]"
+      >
+        +
+      </button>
+      <button
+        type="button"
+        aria-label={`Decrease ${label}`}
+        onClick={() => onStep(-1)}
+        className="flex flex-1 items-center justify-center border-t border-[#2a2a2a] bg-[#171717] px-1.5 font-mono text-xs leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6]"
+      >
+        −
+      </button>
+    </div>
+  );
+}
+
 function SideStringRow({ row, sideKey, withGauges, dispatch }) {
   return (
     <div className="grid grid-cols-[2.25rem_1fr_auto_auto] items-center gap-2 rounded-xl border border-[#222222] bg-[#111111] px-2.5 py-2 sm:gap-3">
       <span className="font-mono text-xs text-[#9ca3af]">{row.stringNumber}</span>
-      <select
-        value={row.midi}
-        onChange={(event) =>
-          dispatch({
-            type: "setSideStringField",
-            side: sideKey,
-            index: row.index,
-            key: "midi",
-            value: Number(event.target.value),
-          })
-        }
-        className="w-full rounded-lg border border-[#2a2a2a] bg-[#0f0f0f] px-2 py-1.5 text-sm text-white outline-none focus:border-[#14b8a6]"
-      >
-        {NOTE_OPTIONS.map((note) => (
-          <option key={note.midi} value={note.midi}>
-            {note.label}
-          </option>
-        ))}
-      </select>
-      {withGauges ? (
-        <input
-          type="number"
-          inputMode="decimal"
-          step={gaugeStepForString(row.index)}
-          value={row.gaugeInput}
+      <div className="flex min-w-0 items-stretch gap-1">
+        <select
+          value={row.midi}
           onChange={(event) =>
             dispatch({
               type: "setSideStringField",
               side: sideKey,
               index: row.index,
-              key: "gaugeInput",
-              value: event.target.value,
+              key: "midi",
+              value: Number(event.target.value),
             })
           }
-          className="w-16 rounded-lg border border-[#2a2a2a] bg-[#0f0f0f] px-2 py-1.5 text-right font-mono text-sm text-white outline-none focus:border-[#14b8a6] sm:w-20"
+          className="w-full min-w-0 flex-1 rounded-lg border border-[#2a2a2a] bg-[#0f0f0f] px-2 py-1.5 text-sm text-white outline-none focus:border-[#14b8a6]"
+        >
+          {NOTE_OPTIONS.map((note) => (
+            <option key={note.midi} value={note.midi}>
+              {note.label}
+            </option>
+          ))}
+        </select>
+        <StepButtons
+          label={`string ${row.stringNumber} pitch`}
+          onStep={(direction) =>
+            dispatch({
+              type: "setSideStringField",
+              side: sideKey,
+              index: row.index,
+              key: "midi",
+              value: stepMidi(row.midi, direction),
+            })
+          }
         />
+      </div>
+      {withGauges ? (
+        <div className="flex items-stretch gap-1">
+          <input
+            type="number"
+            inputMode="decimal"
+            step={gaugeStepForString(row.index)}
+            value={row.gaugeInput}
+            onChange={(event) =>
+              dispatch({
+                type: "setSideStringField",
+                side: sideKey,
+                index: row.index,
+                key: "gaugeInput",
+                value: event.target.value,
+              })
+            }
+            className="w-16 rounded-lg border border-[#2a2a2a] bg-[#0f0f0f] px-2 py-1.5 text-right font-mono text-sm text-white outline-none [appearance:textfield] focus:border-[#14b8a6] sm:w-20 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          />
+          <StepButtons
+            label={`string ${row.stringNumber} gauge`}
+            onStep={(direction) =>
+              dispatch({
+                type: "setSideStringField",
+                side: sideKey,
+                index: row.index,
+                key: "gaugeInput",
+                value: stepGaugeInput(row.gaugeInput, direction, row.index),
+              })
+            }
+          />
+        </div>
       ) : (
         <span className="font-mono text-xs text-[#6b7280]">{formatNumber(row.frequency, 1)} Hz</span>
       )}

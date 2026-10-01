@@ -258,6 +258,26 @@ export function gaugeStepForString(index) {
   return index < 2 ? 0.5 : 1;
 }
 
+export function stepGaugeInput(rawValue, direction, index) {
+  const current = normalizeGaugeInput(rawValue);
+
+  if (current === null) {
+    return rawValue;
+  }
+
+  const next = current + direction * gaugeStepForString(index);
+
+  // Values below 1 would be re-read as inches by normalizeGaugeInput.
+  return next >= 1 ? String(Number(next.toFixed(3))) : rawValue;
+}
+
+export function stepMidi(midi, direction) {
+  const minMidi = NOTE_OPTIONS[0].midi;
+  const maxMidi = NOTE_OPTIONS[NOTE_OPTIONS.length - 1].midi;
+
+  return Math.min(maxMidi, Math.max(minMidi, midi + direction));
+}
+
 export function parseOptionalNumber(rawValue) {
   if (rawValue.trim() === "") {
     return Number.NaN;
