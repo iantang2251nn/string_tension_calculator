@@ -294,12 +294,12 @@ export default function StringTensionCalculator({ t }) {
             {state.multiscale ? (
               <div className="grid grid-cols-2 gap-2">
                 <ScaleInput
-                  label={t.treble}
+                  label={t.trebleScale}
                   value={state.scaleTreble}
                   onChange={(value) => dispatch({ type: "setScale", key: "scaleTreble", value })}
                 />
                 <ScaleInput
-                  label={t.bass}
+                  label={t.bassScale}
                   value={state.scaleBass}
                   onChange={(value) => dispatch({ type: "setScale", key: "scaleBass", value })}
                 />

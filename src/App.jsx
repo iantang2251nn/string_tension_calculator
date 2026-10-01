@@ -17,8 +17,8 @@ const STRINGS = {
     pageTitle: "String Tension Calculator",
     modes: { calculator: "Calculator", translator: "Translation Guide" },
     multiscale: "Multiscale",
-    treble: "Treble",
-    bass: "Bass",
+    trebleScale: "Treble",
+    bassScale: "Bass",
     stringCount: "String Count",
     tuningPreset: "Tuning Preset",
     custom: "Custom",
@@ -68,8 +68,8 @@ const STRINGS = {
     pageTitle: "琴弦张力计算器",
     modes: { calculator: "张力计算器", translator: "张力换算" },
     multiscale: "扇品",
-    treble: "高音",
-    bass: "低音",
+    trebleScale: "高音侧弦长",
+    bassScale: "低音侧弦长",
     stringCount: "弦数",
     tuningPreset: "调弦预设",
     custom: "自定义",
@@ -146,7 +146,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#0f0f0f]">
       <nav className="border-b border-[#1a1a1a] bg-[#0f0f0f]">
-        <div className="mx-auto flex max-w-7xl items-center gap-2 px-3 pt-4 pb-3 sm:px-6 sm:pt-5 lg:px-8">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-2 px-3 pt-4 pb-3 sm:px-6 sm:pt-5 lg:px-8">
           <div className="flex gap-1.5 rounded-2xl border border-[#2a2a2a] bg-[#111111] p-1">
             {MODES.map((key) => {
               const active = key === mode;
@@ -156,7 +156,7 @@ export default function App() {
                   type="button"
                   onClick={() => setMode(key)}
                   aria-pressed={active}
-                  className={`rounded-xl px-3 py-1.5 text-sm font-medium transition sm:px-4 ${
+                  className={`whitespace-nowrap rounded-xl px-2.5 py-1.5 text-sm font-medium transition sm:px-4 ${
                     active
                       ? "bg-[#14b8a6]/15 text-[#ccfbf1]"
                       : "text-[#9ca3af] hover:text-[#e5e5e5]"
@@ -168,7 +168,7 @@ export default function App() {
             })}
           </div>
 
-          <div className="ml-auto flex gap-1 rounded-2xl border border-[#2a2a2a] bg-[#111111] p-1">
+          <div className="flex gap-1 rounded-2xl border border-[#2a2a2a] bg-[#111111] p-1">
             {LANGUAGES.map((option) => {
               const active = option.key === lang;
               return (
@@ -178,7 +178,7 @@ export default function App() {
                   lang={option.htmlLang}
                   onClick={() => setLang(option.key)}
                   aria-pressed={active}
-                  className={`rounded-xl px-2.5 py-1.5 text-xs font-medium transition ${
+                  className={`whitespace-nowrap rounded-xl px-2 py-2 text-xs font-medium transition sm:px-2.5 ${
                     active
                       ? "bg-[#14b8a6]/15 text-[#ccfbf1]"
                       : "text-[#9ca3af] hover:text-[#e5e5e5]"

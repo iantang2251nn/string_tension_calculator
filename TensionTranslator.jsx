@@ -418,14 +418,14 @@ function SidePanel({
           {sideState.multiscale ? (
             <div className="grid grid-cols-2 gap-2">
               <ScaleInput
-                label={t.treble}
+                label={t.trebleScale}
                 value={sideState.scaleTreble}
                 onChange={(value) =>
                   dispatch({ type: "setSideField", side: sideKey, key: "scaleTreble", value })
                 }
               />
               <ScaleInput
-                label={t.bass}
+                label={t.bassScale}
                 value={sideState.scaleBass}
                 onChange={(value) =>
                   dispatch({ type: "setSideField", side: sideKey, key: "scaleBass", value })
