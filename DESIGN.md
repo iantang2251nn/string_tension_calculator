@@ -45,7 +45,7 @@ Two numeric inputs:
 | Field | Label | Default |
 |-------|-------|---------|
 | `scale_treble` | Treble scale length (in) | 25.5 |
-| `scale_bass` | Bass scale length (in) | 25.5 |
+| `scale_bass` | Bass scale length (in) | 25.5 (27.5 for 8-string) |
 
 When both values are equal, the guitar is straight-scale. When they differ, per-string scale lengths are **linearly interpolated**:
 

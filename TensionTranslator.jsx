@@ -3,6 +3,7 @@ import {
   STRING_COUNT_OPTIONS,
   DEFAULT_GAUGES,
   DEFAULT_PRESET_BY_COUNT,
+  DEFAULT_SCALE_BASS_BY_COUNT,
   NOTE_OPTIONS,
   TUNING_PRESETS,
   buildStringsForCount,
@@ -19,6 +20,7 @@ import {
   normalizeGaugeInput,
   parseOptionalNumber,
   recommendGauge,
+  resolveScaleBassForCount,
   resolveUnitWeight,
   toKg,
 } from "./src/lib/tension.js";
@@ -68,13 +70,13 @@ function buildInitialState() {
     targetCountLinked: true,
     reference: {
       scaleTreble: "25.5",
-      scaleBass: "25.5",
+      scaleBass: DEFAULT_SCALE_BASS_BY_COUNT[6],
       tuningPreset: DEFAULT_PRESET_BY_COUNT[6],
       strings: buildStringsForCount(6),
     },
     target: {
       scaleTreble: "25.5",
-      scaleBass: "25.5",
+      scaleBass: DEFAULT_SCALE_BASS_BY_COUNT[6],
       tuningPreset: DEFAULT_PRESET_BY_COUNT[6],
       strings: buildSideStrings(6, { withGauges: false }),
     },
@@ -89,6 +91,7 @@ function reducer(state, action) {
 
       const reference = {
         ...state.reference,
+        scaleBass: resolveScaleBassForCount(state.reference.scaleBass, state.refCount, nextCount),
         strings: resizeStrings(state.reference.strings, nextCount, { withGauges: true }),
       };
       reference.tuningPreset = detectPresetKey(nextCount, reference.strings);
@@ -98,6 +101,7 @@ function reducer(state, action) {
       if (state.targetCountLinked) {
         const target = {
           ...state.target,
+          scaleBass: resolveScaleBassForCount(state.target.scaleBass, state.targetCount, nextCount),
           strings: resizeStrings(state.target.strings, nextCount, { withGauges: false }),
         };
         target.tuningPreset = detectPresetKey(nextCount, target.strings);
@@ -114,6 +118,7 @@ function reducer(state, action) {
 
       const target = {
         ...state.target,
+        scaleBass: resolveScaleBassForCount(state.target.scaleBass, state.targetCount, nextCount),
         strings: resizeStrings(state.target.strings, nextCount, { withGauges: false }),
       };
       target.tuningPreset = detectPresetKey(nextCount, target.strings);

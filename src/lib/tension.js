@@ -7,6 +7,13 @@ export const DEFAULT_PRESET_BY_COUNT = {
   9: "standard-9",
 };
 
+export const DEFAULT_SCALE_BASS_BY_COUNT = {
+  6: "25.5",
+  7: "25.5",
+  8: "27.5",
+  9: "25.5",
+};
+
 export const NOTE_LABELS = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
 
 export const NOTE_TO_SEMITONE = {
@@ -305,6 +312,12 @@ export function detectPresetKey(count, strings) {
   );
 
   return matchingPreset?.key ?? "custom";
+}
+
+export function resolveScaleBassForCount(currentScaleBass, prevCount, nextCount) {
+  return currentScaleBass === DEFAULT_SCALE_BASS_BY_COUNT[prevCount]
+    ? DEFAULT_SCALE_BASS_BY_COUNT[nextCount]
+    : currentScaleBass;
 }
 
 export function buildStringsForCount(count) {

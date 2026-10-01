@@ -2,6 +2,7 @@ import React, { useReducer } from "react";
 import {
   STRING_COUNT_OPTIONS,
   DEFAULT_PRESET_BY_COUNT,
+  DEFAULT_SCALE_BASS_BY_COUNT,
   NOTE_OPTIONS,
   TUNING_PRESETS,
   buildStringsForCount,
@@ -17,6 +18,7 @@ import {
   noteToMidi,
   normalizeGaugeInput,
   parseOptionalNumber,
+  resolveScaleBassForCount,
   resolveUnitWeight,
   toKg,
 } from "./src/lib/tension.js";
@@ -25,7 +27,7 @@ function buildInitialState() {
   return {
     stringCount: 6,
     scaleTreble: "25.5",
-    scaleBass: "25.5",
+    scaleBass: DEFAULT_SCALE_BASS_BY_COUNT[6],
     tuningPreset: DEFAULT_PRESET_BY_COUNT[6],
     strings: buildStringsForCount(6),
   };
@@ -39,6 +41,7 @@ function reducer(state, action) {
       return {
         ...state,
         stringCount: nextCount,
+        scaleBass: resolveScaleBassForCount(state.scaleBass, state.stringCount, nextCount),
         tuningPreset: DEFAULT_PRESET_BY_COUNT[nextCount],
         strings: buildStringsForCount(nextCount),
       };
