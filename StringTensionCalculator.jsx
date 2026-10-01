@@ -2,7 +2,7 @@ import React, { useReducer } from "react";
 import {
   STRING_COUNT_OPTIONS,
   DEFAULT_PRESET_BY_COUNT,
-  DEFAULT_SCALE_BASS_BY_COUNT,
+  DEFAULT_SCALE_BY_COUNT,
   NOTE_OPTIONS,
   TUNING_PRESETS,
   buildStringsForCount,
@@ -17,8 +17,8 @@ import {
   midiToLabel,
   noteToMidi,
   normalizeGaugeInput,
-  parseOptionalNumber,
-  resolveScaleBassForCount,
+  resolveScaleEnds,
+  resolveScaleSettingsForCount,
   resolveUnitWeight,
   stepGaugeInput,
   stepMidi,
@@ -28,8 +28,7 @@ import {
 function buildInitialState() {
   return {
     stringCount: 6,
-    scaleTreble: "25.5",
-    scaleBass: DEFAULT_SCALE_BASS_BY_COUNT[6],
+    ...DEFAULT_SCALE_BY_COUNT[6],
     tuningPreset: DEFAULT_PRESET_BY_COUNT[6],
     strings: buildStringsForCount(6),
   };
@@ -42,8 +41,8 @@ function reducer(state, action) {
 
       return {
         ...state,
+        ...resolveScaleSettingsForCount(state, state.stringCount, nextCount),
         stringCount: nextCount,
-        scaleBass: resolveScaleBassForCount(state.scaleBass, state.stringCount, nextCount),
         tuningPreset: DEFAULT_PRESET_BY_COUNT[nextCount],
         strings: buildStringsForCount(nextCount),
       };
@@ -151,11 +150,52 @@ function StepButtons({ label, onStep }) {
   );
 }
 
+function MultiscaleToggle({ checked, onChange }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-[#888] transition hover:text-[#d4d4d4]"
+    >
+      Multiscale
+      <span
+        className={`relative h-4 w-7 shrink-0 rounded-full border transition ${
+          checked ? "border-[#14b8a6] bg-[#14b8a6]/30" : "border-[#3f3f46] bg-[#111111]"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 left-0.5 h-2.5 w-2.5 rounded-full transition ${
+            checked ? "translate-x-3 bg-[#14b8a6]" : "bg-[#6b7280]"
+          }`}
+        />
+      </span>
+    </button>
+  );
+}
+
+function ScaleInput({ label, value, onChange }) {
+  return (
+    <label className="flex items-center gap-2 rounded-2xl border border-[#2a2a2a] bg-[#111111] px-3 transition focus-within:border-[#14b8a6]">
+      <span className="text-[11px] uppercase tracking-[0.14em] text-[#6b7280]">{label}</span>
+      <input
+        type="number"
+        min="20"
+        max="40"
+        step="0.01"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full min-w-0 bg-transparent py-3 text-base text-white outline-none sm:py-2 sm:text-sm"
+      />
+    </label>
+  );
+}
+
 export default function StringTensionCalculator() {
   const [state, dispatch] = useReducer(reducer, undefined, buildInitialState);
 
-  const scaleTreble = parseOptionalNumber(state.scaleTreble);
-  const scaleBass = parseOptionalNumber(state.scaleBass);
+  const { scaleTreble, scaleBass } = resolveScaleEnds(state);
 
   const rows = state.strings.map((stringState, index) => {
     const scaleLength = interpolateScale(index, state.stringCount, scaleTreble, scaleBass);
@@ -242,33 +282,42 @@ export default function StringTensionCalculator() {
             <p className="text-xs text-[#6b7280]">Changing count resets notes, gauges, and types to the default set.</p>
           </div>
 
-          <label className="space-y-3">
-            <span className="block text-xs uppercase tracking-[0.18em] text-[#888]">Treble Scale (in)</span>
-            <input
-              type="number"
-              min="20"
-              max="40"
-              step="0.01"
-              value={state.scaleTreble}
-              onChange={(event) => dispatch({ type: "setScale", key: "scaleTreble", value: event.target.value })}
-              className="w-full rounded-2xl border border-[#2a2a2a] bg-[#111111] px-3 py-3 text-base text-white outline-none ring-0 transition focus:border-[#14b8a6] sm:py-2 sm:text-sm"
-            />
-          </label>
+          <div className="space-y-3 xl:col-span-2">
+            <div className="flex items-center justify-between gap-3">
+              <span className="block text-xs uppercase tracking-[0.18em] text-[#888]">Scale (in)</span>
+              <MultiscaleToggle
+                checked={state.multiscale}
+                onChange={(value) => dispatch({ type: "setScale", key: "multiscale", value })}
+              />
+            </div>
+            {state.multiscale ? (
+              <div className="grid grid-cols-2 gap-2">
+                <ScaleInput
+                  label="Treble"
+                  value={state.scaleTreble}
+                  onChange={(value) => dispatch({ type: "setScale", key: "scaleTreble", value })}
+                />
+                <ScaleInput
+                  label="Bass"
+                  value={state.scaleBass}
+                  onChange={(value) => dispatch({ type: "setScale", key: "scaleBass", value })}
+                />
+              </div>
+            ) : (
+              <input
+                type="number"
+                min="20"
+                max="40"
+                step="0.01"
+                aria-label="Scale (in)"
+                value={state.scale}
+                onChange={(event) => dispatch({ type: "setScale", key: "scale", value: event.target.value })}
+                className="w-full rounded-2xl border border-[#2a2a2a] bg-[#111111] px-3 py-3 text-base text-white outline-none ring-0 transition focus:border-[#14b8a6] sm:py-2 sm:text-sm"
+              />
+            )}
+          </div>
 
-          <label className="space-y-3">
-            <span className="block text-xs uppercase tracking-[0.18em] text-[#888]">Bass Scale (in)</span>
-            <input
-              type="number"
-              min="20"
-              max="40"
-              step="0.01"
-              value={state.scaleBass}
-              onChange={(event) => dispatch({ type: "setScale", key: "scaleBass", value: event.target.value })}
-              className="w-full rounded-2xl border border-[#2a2a2a] bg-[#111111] px-3 py-3 text-base text-white outline-none ring-0 transition focus:border-[#14b8a6] sm:py-2 sm:text-sm"
-            />
-          </label>
-
-          <label className="space-y-3">
+          <label className="space-y-3 sm:col-span-2 xl:col-span-1">
             <span className="block text-xs uppercase tracking-[0.18em] text-[#888]">Tuning Preset</span>
             <select
               value={state.tuningPreset}

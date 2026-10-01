@@ -3,7 +3,7 @@ import {
   STRING_COUNT_OPTIONS,
   DEFAULT_GAUGES,
   DEFAULT_PRESET_BY_COUNT,
-  DEFAULT_SCALE_BASS_BY_COUNT,
+  DEFAULT_SCALE_BY_COUNT,
   NOTE_OPTIONS,
   TUNING_PRESETS,
   buildStringsForCount,
@@ -18,9 +18,9 @@ import {
   midiToLabel,
   noteToMidi,
   normalizeGaugeInput,
-  parseOptionalNumber,
   recommendGauge,
-  resolveScaleBassForCount,
+  resolveScaleEnds,
+  resolveScaleSettingsForCount,
   resolveUnitWeight,
   stepGaugeInput,
   stepMidi,
@@ -71,14 +71,12 @@ function buildInitialState() {
     targetCount: 6,
     targetCountLinked: true,
     reference: {
-      scaleTreble: "25.5",
-      scaleBass: DEFAULT_SCALE_BASS_BY_COUNT[6],
+      ...DEFAULT_SCALE_BY_COUNT[6],
       tuningPreset: DEFAULT_PRESET_BY_COUNT[6],
       strings: buildStringsForCount(6),
     },
     target: {
-      scaleTreble: "25.5",
-      scaleBass: DEFAULT_SCALE_BASS_BY_COUNT[6],
+      ...DEFAULT_SCALE_BY_COUNT[6],
       tuningPreset: DEFAULT_PRESET_BY_COUNT[6],
       strings: buildSideStrings(6, { withGauges: false }),
     },
@@ -93,7 +91,7 @@ function reducer(state, action) {
 
       const reference = {
         ...state.reference,
-        scaleBass: resolveScaleBassForCount(state.reference.scaleBass, state.refCount, nextCount),
+        ...resolveScaleSettingsForCount(state.reference, state.refCount, nextCount),
         strings: resizeStrings(state.reference.strings, nextCount, { withGauges: true }),
       };
       reference.tuningPreset = detectPresetKey(nextCount, reference.strings);
@@ -103,7 +101,7 @@ function reducer(state, action) {
       if (state.targetCountLinked) {
         const target = {
           ...state.target,
-          scaleBass: resolveScaleBassForCount(state.target.scaleBass, state.targetCount, nextCount),
+          ...resolveScaleSettingsForCount(state.target, state.targetCount, nextCount),
           strings: resizeStrings(state.target.strings, nextCount, { withGauges: false }),
         };
         target.tuningPreset = detectPresetKey(nextCount, target.strings);
@@ -120,7 +118,7 @@ function reducer(state, action) {
 
       const target = {
         ...state.target,
-        scaleBass: resolveScaleBassForCount(state.target.scaleBass, state.targetCount, nextCount),
+        ...resolveScaleSettingsForCount(state.target, state.targetCount, nextCount),
         strings: resizeStrings(state.target.strings, nextCount, { withGauges: false }),
       };
       target.tuningPreset = detectPresetKey(nextCount, target.strings);
@@ -186,8 +184,7 @@ function reducer(state, action) {
 }
 
 function buildSideRows(side, count, sideState) {
-  const scaleTreble = parseOptionalNumber(sideState.scaleTreble);
-  const scaleBass = parseOptionalNumber(sideState.scaleBass);
+  const { scaleTreble, scaleBass } = resolveScaleEnds(sideState);
 
   return sideState.strings.map((stringState, index) => {
     const scaleLength = interpolateScale(index, count, scaleTreble, scaleBass);
@@ -316,6 +313,48 @@ export default function TensionTranslator() {
   );
 }
 
+function MultiscaleToggle({ checked, onChange }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-[#888] transition hover:text-[#d4d4d4]"
+    >
+      Multiscale
+      <span
+        className={`relative h-4 w-7 shrink-0 rounded-full border transition ${
+          checked ? "border-[#14b8a6] bg-[#14b8a6]/30" : "border-[#3f3f46] bg-[#111111]"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 left-0.5 h-2.5 w-2.5 rounded-full transition ${
+            checked ? "translate-x-3 bg-[#14b8a6]" : "bg-[#6b7280]"
+          }`}
+        />
+      </span>
+    </button>
+  );
+}
+
+function ScaleInput({ label, value, onChange }) {
+  return (
+    <label className="flex items-center gap-2 rounded-xl border border-[#2a2a2a] bg-[#111111] px-2.5 transition focus-within:border-[#14b8a6]">
+      <span className="text-[10px] uppercase tracking-[0.14em] text-[#6b7280]">{label}</span>
+      <input
+        type="number"
+        min="20"
+        max="40"
+        step="0.01"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full min-w-0 bg-transparent py-2 text-sm text-white outline-none"
+      />
+    </label>
+  );
+}
+
 function SidePanel({
   title,
   accent,
@@ -341,7 +380,7 @@ function SidePanel({
       </header>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="space-y-2 sm:col-span-2">
+        <div className="col-span-2 space-y-2">
           <p className="text-[11px] uppercase tracking-[0.18em] text-[#888]">String Count</p>
           <div className="flex gap-1.5">
             {STRING_COUNT_OPTIONS.map((option) => {
@@ -364,49 +403,53 @@ function SidePanel({
           </div>
         </div>
 
-        <label className="space-y-2">
-          <span className="block text-[11px] uppercase tracking-[0.18em] text-[#888]">
-            Treble Scale
-          </span>
-          <input
-            type="number"
-            min="20"
-            max="40"
-            step="0.01"
-            value={sideState.scaleTreble}
-            onChange={(event) =>
-              dispatch({
-                type: "setSideField",
-                side: sideKey,
-                key: "scaleTreble",
-                value: event.target.value,
-              })
-            }
-            className="w-full rounded-xl border border-[#2a2a2a] bg-[#111111] px-2.5 py-2 text-sm text-white outline-none transition focus:border-[#14b8a6]"
-          />
-        </label>
-
-        <label className="space-y-2">
-          <span className="block text-[11px] uppercase tracking-[0.18em] text-[#888]">
-            Bass Scale
-          </span>
-          <input
-            type="number"
-            min="20"
-            max="40"
-            step="0.01"
-            value={sideState.scaleBass}
-            onChange={(event) =>
-              dispatch({
-                type: "setSideField",
-                side: sideKey,
-                key: "scaleBass",
-                value: event.target.value,
-              })
-            }
-            className="w-full rounded-xl border border-[#2a2a2a] bg-[#111111] px-2.5 py-2 text-sm text-white outline-none transition focus:border-[#14b8a6]"
-          />
-        </label>
+        <div className="col-span-2 space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <span className="block text-[11px] uppercase tracking-[0.18em] text-[#888]">Scale</span>
+            <MultiscaleToggle
+              checked={sideState.multiscale}
+              onChange={(value) =>
+                dispatch({ type: "setSideField", side: sideKey, key: "multiscale", value })
+              }
+            />
+          </div>
+          {sideState.multiscale ? (
+            <div className="grid grid-cols-2 gap-2">
+              <ScaleInput
+                label="Treble"
+                value={sideState.scaleTreble}
+                onChange={(value) =>
+                  dispatch({ type: "setSideField", side: sideKey, key: "scaleTreble", value })
+                }
+              />
+              <ScaleInput
+                label="Bass"
+                value={sideState.scaleBass}
+                onChange={(value) =>
+                  dispatch({ type: "setSideField", side: sideKey, key: "scaleBass", value })
+                }
+              />
+            </div>
+          ) : (
+            <input
+              type="number"
+              min="20"
+              max="40"
+              step="0.01"
+              aria-label="Scale"
+              value={sideState.scale}
+              onChange={(event) =>
+                dispatch({
+                  type: "setSideField",
+                  side: sideKey,
+                  key: "scale",
+                  value: event.target.value,
+                })
+              }
+              className="w-full rounded-xl border border-[#2a2a2a] bg-[#111111] px-2.5 py-2 text-sm text-white outline-none transition focus:border-[#14b8a6]"
+            />
+          )}
+        </div>
 
         <label className="col-span-2 space-y-2 sm:col-span-4">
           <span className="block text-[11px] uppercase tracking-[0.18em] text-[#888]">
