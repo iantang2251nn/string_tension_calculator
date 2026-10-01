@@ -492,12 +492,12 @@ function SidePanel({
 
 function StepButtons({ label, onStep, t }) {
   return (
-    <div className="flex shrink-0 overflow-hidden rounded-md border border-[#2a2a2a]">
+    <div className="flex shrink-0 gap-1.5">
       <button
         type="button"
         aria-label={t.decrease(label)}
         onClick={() => onStep(-1)}
-        className="flex w-4 items-center justify-center bg-[#171717] font-mono text-xs leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6] sm:w-5"
+        className="flex w-9 touch-manipulation select-none items-center justify-center rounded-lg border border-[#2a2a2a] bg-[#171717] font-mono text-base leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6] active:bg-[#262626] sm:w-7 sm:text-sm"
       >
         −
       </button>
@@ -505,7 +505,7 @@ function StepButtons({ label, onStep, t }) {
         type="button"
         aria-label={t.increase(label)}
         onClick={() => onStep(1)}
-        className="flex w-4 items-center justify-center border-l border-[#2a2a2a] bg-[#171717] font-mono text-xs leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6] sm:w-5"
+        className="flex w-9 touch-manipulation select-none items-center justify-center rounded-lg border border-[#2a2a2a] bg-[#171717] font-mono text-base leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6] active:bg-[#262626] sm:w-7 sm:text-sm"
       >
         +
       </button>
@@ -515,9 +515,9 @@ function StepButtons({ label, onStep, t }) {
 
 function SideStringRow({ row, sideKey, withGauges, dispatch, t }) {
   return (
-    <div className="grid grid-cols-[1.25rem_1fr_auto_auto] items-center gap-1.5 rounded-xl border border-[#222222] bg-[#111111] px-2.5 py-2 sm:gap-3">
+    <div className="grid grid-cols-[1.25rem_1fr_auto] items-center gap-1.5 rounded-xl border border-[#222222] bg-[#111111] px-2.5 py-2 sm:grid-cols-[1.25rem_1fr_auto_auto] sm:gap-3">
       <span className="font-mono text-xs text-[#9ca3af]">{row.stringNumber}</span>
-      <div className="flex min-w-0 items-stretch gap-1">
+      <div className="flex min-w-0 items-stretch gap-1.5">
         <select
           value={row.midi}
           onChange={(event) =>
@@ -529,7 +529,7 @@ function SideStringRow({ row, sideKey, withGauges, dispatch, t }) {
               value: Number(event.target.value),
             })
           }
-          className="w-full min-w-0 flex-1 rounded-lg border border-[#2a2a2a] bg-[#0f0f0f] px-2 py-1.5 text-sm text-white outline-none focus:border-[#14b8a6]"
+          className="w-full min-w-0 flex-1 rounded-lg border border-[#2a2a2a] bg-[#0f0f0f] px-2 py-2 text-sm text-white outline-none focus:border-[#14b8a6] sm:py-1.5"
         >
           {NOTE_OPTIONS.map((note) => (
             <option key={note.midi} value={note.midi}>
@@ -552,7 +552,7 @@ function SideStringRow({ row, sideKey, withGauges, dispatch, t }) {
         />
       </div>
       {withGauges ? (
-        <div className="flex items-stretch gap-1">
+        <div className="col-start-2 row-start-2 flex items-stretch gap-1.5 sm:col-start-auto sm:row-start-auto">
           <input
             type="number"
             inputMode="decimal"
@@ -567,7 +567,7 @@ function SideStringRow({ row, sideKey, withGauges, dispatch, t }) {
                 value: event.target.value,
               })
             }
-            className="w-12 rounded-lg border border-[#2a2a2a] bg-[#0f0f0f] px-1.5 py-1.5 text-right font-mono text-sm text-white outline-none [appearance:textfield] focus:border-[#14b8a6] sm:w-14 sm:px-2 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            className="w-16 rounded-lg border border-[#2a2a2a] bg-[#0f0f0f] px-2 py-2 text-right font-mono text-sm text-white outline-none [appearance:textfield] focus:border-[#14b8a6] sm:w-14 sm:py-1.5 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           />
           <StepButtons
             label={t.gaugeLabel(row.stringNumber)}
@@ -584,7 +584,9 @@ function SideStringRow({ row, sideKey, withGauges, dispatch, t }) {
           />
         </div>
       ) : (
-        <span className="font-mono text-xs text-[#6b7280]">{formatNumber(row.frequency, 1)} Hz</span>
+        <span className="col-start-2 row-start-2 font-mono text-xs text-[#6b7280] sm:col-start-auto sm:row-start-auto">
+          {formatNumber(row.frequency, 1)} Hz
+        </span>
       )}
       <select
         value={row.type}
@@ -597,7 +599,7 @@ function SideStringRow({ row, sideKey, withGauges, dispatch, t }) {
             value: event.target.value,
           })
         }
-        className="w-14 rounded-lg border border-[#2a2a2a] bg-[#0f0f0f] px-1.5 py-1.5 text-xs text-white outline-none focus:border-[#14b8a6] sm:w-16 sm:text-sm"
+        className="w-14 rounded-lg border border-[#2a2a2a] bg-[#0f0f0f] px-1.5 py-2 text-xs text-white outline-none focus:border-[#14b8a6] sm:w-16 sm:py-1.5 sm:text-sm"
       >
         <option value="PL">PL</option>
         <option value="NW">NW</option>
