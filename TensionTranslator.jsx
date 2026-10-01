@@ -381,7 +381,7 @@ function SidePanel({
       </header>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="col-span-2 space-y-2">
+        <div className="col-span-2 space-y-2 lg:col-span-4">
           <p className="text-[11px] uppercase tracking-[0.18em] text-[#888]">{t.stringCount}</p>
           <div className="flex gap-1.5">
             {STRING_COUNT_OPTIONS.map((option) => {
@@ -404,7 +404,7 @@ function SidePanel({
           </div>
         </div>
 
-        <div className="col-span-2 space-y-2">
+        <div className="@container col-span-2 space-y-2 lg:col-span-4">
           <div className="flex items-center justify-between gap-3">
             <span className="block text-[11px] uppercase tracking-[0.18em] text-[#888]">{t.scale}</span>
             <MultiscaleToggle
@@ -416,7 +416,7 @@ function SidePanel({
             />
           </div>
           {sideState.multiscale ? (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 @min-[17.5rem]:grid-cols-2">
               <ScaleInput
                 label={t.trebleScale}
                 value={sideState.scaleTreble}

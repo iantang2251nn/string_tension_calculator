@@ -282,7 +282,7 @@ export default function StringTensionCalculator({ t }) {
             <p className="text-xs text-[#6b7280]">{t.countResetNote}</p>
           </div>
 
-          <div className="space-y-3 xl:col-span-2">
+          <div className="@container space-y-3 xl:col-span-2">
             <div className="flex items-center justify-between gap-3">
               <span className="block text-xs uppercase tracking-[0.18em] text-[#888]">{t.scaleIn}</span>
               <MultiscaleToggle
@@ -292,7 +292,7 @@ export default function StringTensionCalculator({ t }) {
               />
             </div>
             {state.multiscale ? (
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 @min-[20rem]:grid-cols-2">
                 <ScaleInput
                   label={t.trebleScale}
                   value={state.scaleTreble}
