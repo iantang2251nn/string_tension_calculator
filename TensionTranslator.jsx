@@ -22,8 +22,10 @@ import {
   resolveScaleEnds,
   resolveScaleSettingsForCount,
   resolveUnitWeight,
+  stepAllGauges,
   stepGaugeInput,
   stepMidi,
+  transposeStrings,
   toKg,
 } from "./src/lib/tension.js";
 
@@ -175,6 +177,27 @@ function reducer(state, action) {
       return {
         ...state,
         [side]: { ...sideState, strings, tuningPreset },
+      };
+    }
+
+    case "transposeSide": {
+      const side = action.side;
+      const sideState = state[side];
+      const count = side === "reference" ? state.refCount : state.targetCount;
+      const strings = transposeStrings(sideState.strings, action.direction);
+
+      return {
+        ...state,
+        [side]: { ...sideState, strings, tuningPreset: detectPresetKey(count, strings) },
+      };
+    }
+
+    case "stepSideGauges": {
+      const sideState = state[action.side];
+
+      return {
+        ...state,
+        [action.side]: { ...sideState, strings: stepAllGauges(sideState.strings, action.direction) },
       };
     }
 
@@ -475,6 +498,7 @@ function SidePanel({
       </div>
 
       <div className="mt-4 space-y-2">
+        <SideColumnHeader sideKey={sideKey} withGauges={withGauges} dispatch={dispatch} t={t} />
         {rows.map((row) => (
           <SideStringRow
             key={row.stringNumber}
@@ -490,14 +514,14 @@ function SidePanel({
   );
 }
 
-function StepButtons({ label, onStep, t }) {
+function StepButtons({ label, onStep, t, className = "" }) {
   return (
-    <div className="flex shrink-0 gap-1.5">
+    <div className={`flex shrink-0 gap-1.5 ${className}`}>
       <button
         type="button"
         aria-label={t.decrease(label)}
         onClick={() => onStep(-1)}
-        className="flex w-9 touch-manipulation select-none items-center justify-center rounded-lg border border-[#2a2a2a] bg-[#171717] font-mono text-base leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6] active:bg-[#262626] sm:w-7 sm:text-sm"
+        className="flex w-9 touch-manipulation select-none items-center justify-center rounded-lg border border-[#2a2a2a] bg-[#171717] font-mono text-base font-normal leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6] active:bg-[#262626] sm:w-7 sm:text-sm"
       >
         −
       </button>
@@ -505,10 +529,42 @@ function StepButtons({ label, onStep, t }) {
         type="button"
         aria-label={t.increase(label)}
         onClick={() => onStep(1)}
-        className="flex w-9 touch-manipulation select-none items-center justify-center rounded-lg border border-[#2a2a2a] bg-[#171717] font-mono text-base leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6] active:bg-[#262626] sm:w-7 sm:text-sm"
+        className="flex w-9 touch-manipulation select-none items-center justify-center rounded-lg border border-[#2a2a2a] bg-[#171717] font-mono text-base font-normal leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6] active:bg-[#262626] sm:w-7 sm:text-sm"
       >
         +
       </button>
+    </div>
+  );
+}
+
+// Column-wide steppers, laid out on the same grid as SideStringRow so the buttons line up.
+function SideColumnHeader({ sideKey, withGauges, dispatch, t }) {
+  return (
+    <div className="grid grid-cols-[1.25rem_1fr_auto] items-center gap-1.5 border border-transparent px-2.5 text-[11px] uppercase tracking-[0.18em] text-[#888] sm:grid-cols-[1.25rem_1fr_auto_auto] sm:gap-3">
+      <span />
+      <div className="flex min-w-0 items-center gap-1.5">
+        <span className="min-w-0 flex-1 truncate">{t.colNote}</span>
+        <StepButtons
+          label={t.allPitchLabel}
+          t={t}
+          className="h-9 sm:h-8"
+          onStep={(direction) => dispatch({ type: "transposeSide", side: sideKey, direction })}
+        />
+      </div>
+      {withGauges ? (
+        <div className="col-start-2 row-start-2 flex items-center gap-1.5 sm:col-start-auto sm:row-start-auto">
+          <span className="w-16 sm:w-14">{t.colGauge}</span>
+          <StepButtons
+            label={t.allGaugeLabel}
+            t={t}
+            className="h-9 sm:h-8"
+            onStep={(direction) => dispatch({ type: "stepSideGauges", side: sideKey, direction })}
+          />
+        </div>
+      ) : (
+        <span className="hidden sm:block sm:w-[4.5rem]" />
+      )}
+      <span className="w-14 sm:w-16" />
     </div>
   );
 }
@@ -584,7 +640,7 @@ function SideStringRow({ row, sideKey, withGauges, dispatch, t }) {
           />
         </div>
       ) : (
-        <span className="col-start-2 row-start-2 font-mono text-xs text-[#6b7280] sm:col-start-auto sm:row-start-auto">
+        <span className="col-start-2 row-start-2 font-mono text-xs text-[#6b7280] sm:col-start-auto sm:row-start-auto sm:w-[4.5rem] sm:text-right">
           {formatNumber(row.frequency, 1)} Hz
         </span>
       )}

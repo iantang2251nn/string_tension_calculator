@@ -287,10 +287,11 @@ export function transposeStrings(strings, direction) {
 }
 
 export function stepAllGauges(strings, direction) {
-  return strings.map((stringState, index) => ({
-    ...stringState,
-    gaugeInput: stepGaugeInput(stringState.gaugeInput, direction, index),
-  }));
+  return strings.map((stringState, index) =>
+    stringState.gaugeInput === undefined
+      ? stringState
+      : { ...stringState, gaugeInput: stepGaugeInput(stringState.gaugeInput, direction, index) },
+  );
 }
 
 export function parseOptionalNumber(rawValue) {
