@@ -446,22 +446,22 @@ function SidePanel({
 
 function StepButtons({ label, onStep }) {
   return (
-    <div className="flex shrink-0 flex-col overflow-hidden rounded-md border border-[#2a2a2a]">
-      <button
-        type="button"
-        aria-label={`Increase ${label}`}
-        onClick={() => onStep(1)}
-        className="flex flex-1 items-center justify-center bg-[#171717] px-1.5 font-mono text-xs leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6]"
-      >
-        +
-      </button>
+    <div className="flex shrink-0 overflow-hidden rounded-md border border-[#2a2a2a]">
       <button
         type="button"
         aria-label={`Decrease ${label}`}
         onClick={() => onStep(-1)}
-        className="flex flex-1 items-center justify-center border-t border-[#2a2a2a] bg-[#171717] px-1.5 font-mono text-xs leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6]"
+        className="flex w-4 items-center justify-center bg-[#171717] font-mono text-xs leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6] sm:w-5"
       >
         −
+      </button>
+      <button
+        type="button"
+        aria-label={`Increase ${label}`}
+        onClick={() => onStep(1)}
+        className="flex w-4 items-center justify-center border-l border-[#2a2a2a] bg-[#171717] font-mono text-xs leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6] sm:w-5"
+      >
+        +
       </button>
     </div>
   );
@@ -469,7 +469,7 @@ function StepButtons({ label, onStep }) {
 
 function SideStringRow({ row, sideKey, withGauges, dispatch }) {
   return (
-    <div className="grid grid-cols-[2.25rem_1fr_auto_auto] items-center gap-2 rounded-xl border border-[#222222] bg-[#111111] px-2.5 py-2 sm:gap-3">
+    <div className="grid grid-cols-[1.25rem_1fr_auto_auto] items-center gap-1.5 rounded-xl border border-[#222222] bg-[#111111] px-2.5 py-2 sm:gap-3">
       <span className="font-mono text-xs text-[#9ca3af]">{row.stringNumber}</span>
       <div className="flex min-w-0 items-stretch gap-1">
         <select
@@ -520,7 +520,7 @@ function SideStringRow({ row, sideKey, withGauges, dispatch }) {
                 value: event.target.value,
               })
             }
-            className="w-16 rounded-lg border border-[#2a2a2a] bg-[#0f0f0f] px-2 py-1.5 text-right font-mono text-sm text-white outline-none [appearance:textfield] focus:border-[#14b8a6] sm:w-20 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            className="w-12 rounded-lg border border-[#2a2a2a] bg-[#0f0f0f] px-1.5 py-1.5 text-right font-mono text-sm text-white outline-none [appearance:textfield] focus:border-[#14b8a6] sm:w-14 sm:px-2 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           />
           <StepButtons
             label={`string ${row.stringNumber} gauge`}

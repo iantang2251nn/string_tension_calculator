@@ -130,22 +130,22 @@ function summarySplit(row, stringCount) {
 
 function StepButtons({ label, onStep }) {
   return (
-    <div className="flex shrink-0 flex-col overflow-hidden rounded-lg border border-[#2a2a2a]">
-      <button
-        type="button"
-        aria-label={`Increase ${label}`}
-        onClick={() => onStep(1)}
-        className="flex flex-1 items-center justify-center bg-[#171717] px-1.5 font-mono text-xs leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6]"
-      >
-        +
-      </button>
+    <div className="flex shrink-0 overflow-hidden rounded-lg border border-[#2a2a2a]">
       <button
         type="button"
         aria-label={`Decrease ${label}`}
         onClick={() => onStep(-1)}
-        className="flex flex-1 items-center justify-center border-t border-[#2a2a2a] bg-[#171717] px-1.5 font-mono text-xs leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6]"
+        className="flex w-5 items-center justify-center bg-[#171717] font-mono text-xs leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6]"
       >
         −
+      </button>
+      <button
+        type="button"
+        aria-label={`Increase ${label}`}
+        onClick={() => onStep(1)}
+        className="flex w-5 items-center justify-center border-l border-[#2a2a2a] bg-[#171717] font-mono text-xs leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6]"
+      >
+        +
       </button>
     </div>
   );
@@ -322,7 +322,7 @@ export default function StringTensionCalculator() {
                     <tr key={row.stringNumber} className={toneClass}>
                       <td className="px-3 py-3 font-mono text-[#d4d4d4] sm:px-4">{row.stringNumber}</td>
                       <td className="px-3 py-3 sm:px-4">
-                        <div className="min-w-[7.5rem] sm:min-w-[8.5rem]">
+                        <div>
                           <div className="flex items-stretch gap-1">
                             <select
                               value={row.midi}
@@ -334,7 +334,7 @@ export default function StringTensionCalculator() {
                                   value: Number(event.target.value),
                                 })
                               }
-                              className="w-full min-w-0 flex-1 rounded-xl border border-[#2a2a2a] bg-[#111111] px-2.5 py-3 text-sm text-white outline-none transition focus:border-[#14b8a6] sm:px-3 sm:py-2"
+                              className="w-[4.5rem] rounded-xl border border-[#2a2a2a] bg-[#111111] px-2 py-3 text-sm text-white outline-none transition focus:border-[#14b8a6] sm:w-20 sm:px-2.5 sm:py-2"
                             >
                               {NOTE_OPTIONS.map((note) => (
                                 <option key={note.midi} value={note.midi}>
@@ -372,7 +372,7 @@ export default function StringTensionCalculator() {
                                 value: event.target.value,
                               })
                             }
-                            className="w-20 rounded-xl border border-[#2a2a2a] bg-[#111111] px-2.5 py-3 font-mono text-sm text-white outline-none transition [appearance:textfield] focus:border-[#14b8a6] sm:w-24 sm:px-3 sm:py-2 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                            className="w-14 rounded-xl border border-[#2a2a2a] bg-[#111111] px-2 py-3 font-mono text-sm text-white outline-none transition [appearance:textfield] focus:border-[#14b8a6] sm:w-16 sm:px-2.5 sm:py-2 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                           />
                           <StepButtons
                             label={`string ${row.stringNumber} gauge`}
