@@ -40,14 +40,18 @@ Plain steel is used for unwound strings (typically strings 1–3 on a 6-string, 
 
 ### F2 — Multi-Scale Input
 
-Two numeric inputs:
+A **Multiscale** toggle switches between one straight-scale input (`scale`) and two inputs (`scale_treble`, `scale_bass`). Defaults per string count:
 
-| Field | Label | Default |
-|-------|-------|---------|
-| `scale_treble` | Treble scale length (in) | 25.5 |
-| `scale_bass` | Bass scale length (in) | 25.5 |
+| Strings | Multiscale | `scale` (off) | `scale_treble` → `scale_bass` (on) |
+|---------|------------|---------------|------------------------------------|
+| 6 | off | 25.5 | 24.75 → 25.65 |
+| 7 | off | 25.5 | 24.75 → 25.65 |
+| 8 | on | 25.5 | 25.5 → 27.5 |
+| 9 | off | 25.5 | 25.5 → 25.5 |
 
-When both values are equal, the guitar is straight-scale. When they differ, per-string scale lengths are **linearly interpolated**:
+On a string-count change, the toggle and each scale field move to the new count's default only if they still hold the previous count's default; edited values are kept.
+
+When multiscale is off (or both values are equal), the guitar is straight-scale. When they differ, per-string scale lengths are **linearly interpolated**:
 
 ```
 L_i = scale_treble + (scale_bass - scale_treble) × i / (N - 1)
@@ -167,6 +171,8 @@ The **imbalance** (Δ) is `|treble − bass|`, useful for assessing neck twist r
 ```
 State {
   string_count:    6 | 7 | 8
+  multiscale:      boolean
+  scale:           number (inches)   // used when multiscale is off
   scale_treble:    number (inches)
   scale_bass:      number (inches)
   strings: [

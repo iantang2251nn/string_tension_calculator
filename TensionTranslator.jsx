@@ -3,6 +3,7 @@ import {
   STRING_COUNT_OPTIONS,
   DEFAULT_GAUGES,
   DEFAULT_PRESET_BY_COUNT,
+  DEFAULT_SCALE_BY_COUNT,
   NOTE_OPTIONS,
   TUNING_PRESETS,
   buildStringsForCount,
@@ -17,9 +18,12 @@ import {
   midiToLabel,
   noteToMidi,
   normalizeGaugeInput,
-  parseOptionalNumber,
   recommendGauge,
+  resolveScaleEnds,
+  resolveScaleSettingsForCount,
   resolveUnitWeight,
+  stepGaugeInput,
+  stepMidi,
   toKg,
 } from "./src/lib/tension.js";
 
@@ -67,14 +71,12 @@ function buildInitialState() {
     targetCount: 6,
     targetCountLinked: true,
     reference: {
-      scaleTreble: "25.5",
-      scaleBass: "25.5",
+      ...DEFAULT_SCALE_BY_COUNT[6],
       tuningPreset: DEFAULT_PRESET_BY_COUNT[6],
       strings: buildStringsForCount(6),
     },
     target: {
-      scaleTreble: "25.5",
-      scaleBass: "25.5",
+      ...DEFAULT_SCALE_BY_COUNT[6],
       tuningPreset: DEFAULT_PRESET_BY_COUNT[6],
       strings: buildSideStrings(6, { withGauges: false }),
     },
@@ -89,6 +91,7 @@ function reducer(state, action) {
 
       const reference = {
         ...state.reference,
+        ...resolveScaleSettingsForCount(state.reference, state.refCount, nextCount),
         strings: resizeStrings(state.reference.strings, nextCount, { withGauges: true }),
       };
       reference.tuningPreset = detectPresetKey(nextCount, reference.strings);
@@ -98,6 +101,7 @@ function reducer(state, action) {
       if (state.targetCountLinked) {
         const target = {
           ...state.target,
+          ...resolveScaleSettingsForCount(state.target, state.targetCount, nextCount),
           strings: resizeStrings(state.target.strings, nextCount, { withGauges: false }),
         };
         target.tuningPreset = detectPresetKey(nextCount, target.strings);
@@ -114,6 +118,7 @@ function reducer(state, action) {
 
       const target = {
         ...state.target,
+        ...resolveScaleSettingsForCount(state.target, state.targetCount, nextCount),
         strings: resizeStrings(state.target.strings, nextCount, { withGauges: false }),
       };
       target.tuningPreset = detectPresetKey(nextCount, target.strings);
@@ -179,8 +184,7 @@ function reducer(state, action) {
 }
 
 function buildSideRows(side, count, sideState) {
-  const scaleTreble = parseOptionalNumber(sideState.scaleTreble);
-  const scaleBass = parseOptionalNumber(sideState.scaleBass);
+  const { scaleTreble, scaleBass } = resolveScaleEnds(sideState);
 
   return sideState.strings.map((stringState, index) => {
     const scaleLength = interpolateScale(index, count, scaleTreble, scaleBass);
@@ -216,7 +220,7 @@ function deltaToneClass(deltaLbs) {
   return Math.abs(deltaLbs) < 0.5 ? "text-[#9ca3af]" : "text-amber-400";
 }
 
-export default function TensionTranslator() {
+export default function TensionTranslator({ t }) {
   const [state, dispatch] = useReducer(reducer, undefined, buildInitialState);
 
   const refRows = buildSideRows("reference", state.refCount, state.reference);
@@ -269,18 +273,16 @@ export default function TensionTranslator() {
       <div className="mx-auto max-w-7xl space-y-6">
         <header className="space-y-2">
           <h1 className="text-2xl font-semibold tracking-tight text-[#14b8a6] sm:text-3xl">
-            Tension Translation Guide
+            {t.transTitle}
           </h1>
           <p className="max-w-3xl text-sm leading-6 text-[#9ca3af]">
-            Match the feel of one guitar on another. Enter your reference setup, describe the target
-            guitar's scale and tuning, and get gauge recommendations that match the reference's
-            string-by-string tensions.
+            {t.transDescription}
           </p>
         </header>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <SidePanel
-            title="Reference"
+            title={t.reference}
             accent="border-l-4 border-l-[#14b8a6]/50"
             count={state.refCount}
             countAction="setRefCount"
@@ -289,9 +291,10 @@ export default function TensionTranslator() {
             rows={refRows}
             withGauges
             dispatch={dispatch}
+            t={t}
           />
           <SidePanel
-            title="Target"
+            title={t.target}
             accent="border-l-4 border-l-[#fbbf24]/40"
             count={state.targetCount}
             countAction="setTargetCount"
@@ -300,12 +303,55 @@ export default function TensionTranslator() {
             rows={targetRows}
             withGauges={false}
             dispatch={dispatch}
+            t={t}
           />
         </div>
 
-        <RecommendationTable rows={recommendationRows} />
+        <RecommendationTable rows={recommendationRows} t={t} />
       </div>
     </div>
+  );
+}
+
+function MultiscaleToggle({ checked, onChange, label }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-[#888] transition hover:text-[#d4d4d4]"
+    >
+      {label}
+      <span
+        className={`relative h-4 w-7 shrink-0 rounded-full border transition ${
+          checked ? "border-[#14b8a6] bg-[#14b8a6]/30" : "border-[#3f3f46] bg-[#111111]"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 left-0.5 h-2.5 w-2.5 rounded-full transition ${
+            checked ? "translate-x-3 bg-[#14b8a6]" : "bg-[#6b7280]"
+          }`}
+        />
+      </span>
+    </button>
+  );
+}
+
+function ScaleInput({ label, value, onChange }) {
+  return (
+    <label className="flex items-center gap-2 rounded-xl border border-[#2a2a2a] bg-[#111111] px-2.5 transition focus-within:border-[#14b8a6]">
+      <span className="shrink-0 whitespace-nowrap text-[10px] uppercase tracking-[0.14em] text-[#6b7280]">{label}</span>
+      <input
+        type="number"
+        min="20"
+        max="40"
+        step="0.01"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full min-w-0 bg-transparent py-2 text-sm text-white outline-none"
+      />
+    </label>
   );
 }
 
@@ -319,6 +365,7 @@ function SidePanel({
   rows,
   withGauges,
   dispatch,
+  t,
 }) {
   const presets = TUNING_PRESETS[count];
 
@@ -329,13 +376,13 @@ function SidePanel({
       <header className="mb-4 flex items-baseline justify-between">
         <h2 className="text-lg font-semibold text-white">{title}</h2>
         <p className="text-xs uppercase tracking-[0.18em] text-[#888]">
-          {withGauges ? "input" : "tuning + scale only"}
+          {withGauges ? t.referenceTag : t.targetTag}
         </p>
       </header>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="space-y-2 sm:col-span-2">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-[#888]">String Count</p>
+        <div className="col-span-2 space-y-2 lg:col-span-4">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-[#888]">{t.stringCount}</p>
           <div className="flex gap-1.5">
             {STRING_COUNT_OPTIONS.map((option) => {
               const active = option === count;
@@ -357,53 +404,58 @@ function SidePanel({
           </div>
         </div>
 
-        <label className="space-y-2">
-          <span className="block text-[11px] uppercase tracking-[0.18em] text-[#888]">
-            Treble Scale
-          </span>
-          <input
-            type="number"
-            min="20"
-            max="40"
-            step="0.01"
-            value={sideState.scaleTreble}
-            onChange={(event) =>
-              dispatch({
-                type: "setSideField",
-                side: sideKey,
-                key: "scaleTreble",
-                value: event.target.value,
-              })
-            }
-            className="w-full rounded-xl border border-[#2a2a2a] bg-[#111111] px-2.5 py-2 text-sm text-white outline-none transition focus:border-[#14b8a6]"
-          />
-        </label>
-
-        <label className="space-y-2">
-          <span className="block text-[11px] uppercase tracking-[0.18em] text-[#888]">
-            Bass Scale
-          </span>
-          <input
-            type="number"
-            min="20"
-            max="40"
-            step="0.01"
-            value={sideState.scaleBass}
-            onChange={(event) =>
-              dispatch({
-                type: "setSideField",
-                side: sideKey,
-                key: "scaleBass",
-                value: event.target.value,
-              })
-            }
-            className="w-full rounded-xl border border-[#2a2a2a] bg-[#111111] px-2.5 py-2 text-sm text-white outline-none transition focus:border-[#14b8a6]"
-          />
-        </label>
+        <div className="@container col-span-2 space-y-2 lg:col-span-4">
+          <div className="flex items-center justify-between gap-3">
+            <span className="block text-[11px] uppercase tracking-[0.18em] text-[#888]">{t.scale}</span>
+            <MultiscaleToggle
+              label={t.multiscale}
+              checked={sideState.multiscale}
+              onChange={(value) =>
+                dispatch({ type: "setSideField", side: sideKey, key: "multiscale", value })
+              }
+            />
+          </div>
+          {sideState.multiscale ? (
+            <div className="grid grid-cols-1 gap-2 @min-[17.5rem]:grid-cols-2">
+              <ScaleInput
+                label={t.trebleScale}
+                value={sideState.scaleTreble}
+                onChange={(value) =>
+                  dispatch({ type: "setSideField", side: sideKey, key: "scaleTreble", value })
+                }
+              />
+              <ScaleInput
+                label={t.bassScale}
+                value={sideState.scaleBass}
+                onChange={(value) =>
+                  dispatch({ type: "setSideField", side: sideKey, key: "scaleBass", value })
+                }
+              />
+            </div>
+          ) : (
+            <input
+              type="number"
+              min="20"
+              max="40"
+              step="0.01"
+              aria-label={t.scale}
+              value={sideState.scale}
+              onChange={(event) =>
+                dispatch({
+                  type: "setSideField",
+                  side: sideKey,
+                  key: "scale",
+                  value: event.target.value,
+                })
+              }
+              className="w-full rounded-xl border border-[#2a2a2a] bg-[#111111] px-2.5 py-2 text-sm text-white outline-none transition focus:border-[#14b8a6]"
+            />
+          )}
+        </div>
 
         <label className="col-span-2 space-y-2 sm:col-span-4">
           <span className="block text-[11px] uppercase tracking-[0.18em] text-[#888]">
-            Tuning Preset
+            {t.tuningPreset}
           </span>
           <select
             value={sideState.tuningPreset}
@@ -417,7 +469,7 @@ function SidePanel({
                 {preset.label}
               </option>
             ))}
-            {sideState.tuningPreset === "custom" ? <option value="custom">Custom</option> : null}
+            {sideState.tuningPreset === "custom" ? <option value="custom">{t.custom}</option> : null}
           </select>
         </label>
       </div>
@@ -430,6 +482,7 @@ function SidePanel({
             sideKey={sideKey}
             withGauges={withGauges}
             dispatch={dispatch}
+            t={t}
           />
         ))}
       </div>
@@ -437,46 +490,99 @@ function SidePanel({
   );
 }
 
-function SideStringRow({ row, sideKey, withGauges, dispatch }) {
+function StepButtons({ label, onStep, t }) {
   return (
-    <div className="grid grid-cols-[2.25rem_1fr_auto_auto] items-center gap-2 rounded-xl border border-[#222222] bg-[#111111] px-2.5 py-2 sm:gap-3">
-      <span className="font-mono text-xs text-[#9ca3af]">{row.stringNumber}</span>
-      <select
-        value={row.midi}
-        onChange={(event) =>
-          dispatch({
-            type: "setSideStringField",
-            side: sideKey,
-            index: row.index,
-            key: "midi",
-            value: Number(event.target.value),
-          })
-        }
-        className="w-full rounded-lg border border-[#2a2a2a] bg-[#0f0f0f] px-2 py-1.5 text-sm text-white outline-none focus:border-[#14b8a6]"
+    <div className="flex shrink-0 overflow-hidden rounded-md border border-[#2a2a2a]">
+      <button
+        type="button"
+        aria-label={t.decrease(label)}
+        onClick={() => onStep(-1)}
+        className="flex w-4 items-center justify-center bg-[#171717] font-mono text-xs leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6] sm:w-5"
       >
-        {NOTE_OPTIONS.map((note) => (
-          <option key={note.midi} value={note.midi}>
-            {note.label}
-          </option>
-        ))}
-      </select>
-      {withGauges ? (
-        <input
-          type="number"
-          inputMode="decimal"
-          step={gaugeStepForString(row.index)}
-          value={row.gaugeInput}
+        −
+      </button>
+      <button
+        type="button"
+        aria-label={t.increase(label)}
+        onClick={() => onStep(1)}
+        className="flex w-4 items-center justify-center border-l border-[#2a2a2a] bg-[#171717] font-mono text-xs leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6] sm:w-5"
+      >
+        +
+      </button>
+    </div>
+  );
+}
+
+function SideStringRow({ row, sideKey, withGauges, dispatch, t }) {
+  return (
+    <div className="grid grid-cols-[1.25rem_1fr_auto_auto] items-center gap-1.5 rounded-xl border border-[#222222] bg-[#111111] px-2.5 py-2 sm:gap-3">
+      <span className="font-mono text-xs text-[#9ca3af]">{row.stringNumber}</span>
+      <div className="flex min-w-0 items-stretch gap-1">
+        <select
+          value={row.midi}
           onChange={(event) =>
             dispatch({
               type: "setSideStringField",
               side: sideKey,
               index: row.index,
-              key: "gaugeInput",
-              value: event.target.value,
+              key: "midi",
+              value: Number(event.target.value),
             })
           }
-          className="w-16 rounded-lg border border-[#2a2a2a] bg-[#0f0f0f] px-2 py-1.5 text-right font-mono text-sm text-white outline-none focus:border-[#14b8a6] sm:w-20"
+          className="w-full min-w-0 flex-1 rounded-lg border border-[#2a2a2a] bg-[#0f0f0f] px-2 py-1.5 text-sm text-white outline-none focus:border-[#14b8a6]"
+        >
+          {NOTE_OPTIONS.map((note) => (
+            <option key={note.midi} value={note.midi}>
+              {note.label}
+            </option>
+          ))}
+        </select>
+        <StepButtons
+          label={t.pitchLabel(row.stringNumber)}
+          t={t}
+          onStep={(direction) =>
+            dispatch({
+              type: "setSideStringField",
+              side: sideKey,
+              index: row.index,
+              key: "midi",
+              value: stepMidi(row.midi, direction),
+            })
+          }
         />
+      </div>
+      {withGauges ? (
+        <div className="flex items-stretch gap-1">
+          <input
+            type="number"
+            inputMode="decimal"
+            step={gaugeStepForString(row.index)}
+            value={row.gaugeInput}
+            onChange={(event) =>
+              dispatch({
+                type: "setSideStringField",
+                side: sideKey,
+                index: row.index,
+                key: "gaugeInput",
+                value: event.target.value,
+              })
+            }
+            className="w-12 rounded-lg border border-[#2a2a2a] bg-[#0f0f0f] px-1.5 py-1.5 text-right font-mono text-sm text-white outline-none [appearance:textfield] focus:border-[#14b8a6] sm:w-14 sm:px-2 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          />
+          <StepButtons
+            label={t.gaugeLabel(row.stringNumber)}
+            t={t}
+            onStep={(direction) =>
+              dispatch({
+                type: "setSideStringField",
+                side: sideKey,
+                index: row.index,
+                key: "gaugeInput",
+                value: stepGaugeInput(row.gaugeInput, direction, row.index),
+              })
+            }
+          />
+        </div>
       ) : (
         <span className="font-mono text-xs text-[#6b7280]">{formatNumber(row.frequency, 1)} Hz</span>
       )}
@@ -500,14 +606,13 @@ function SideStringRow({ row, sideKey, withGauges, dispatch }) {
   );
 }
 
-function RecommendationTable({ rows }) {
+function RecommendationTable({ rows, t }) {
   return (
     <section className="overflow-hidden rounded-3xl border border-[#2a2a2a] bg-[#171717]">
       <header className="border-b border-[#2a2a2a] px-4 py-3">
-        <h2 className="text-lg font-semibold text-white">Recommended target gauges</h2>
+        <h2 className="text-lg font-semibold text-white">{t.recTitle}</h2>
         <p className="text-sm text-[#888]">
-          Search prefers tabulated D&apos;Addario gauges; falls back to power-law inference when the
-          closest tabulated gauge is at the edge of the table.
+          {t.recNote}
         </p>
       </header>
 
@@ -516,13 +621,13 @@ function RecommendationTable({ rows }) {
           <thead className="bg-[#111111] text-xs uppercase tracking-[0.16em] text-[#888]">
             <tr>
               <th className="px-3 py-3 sm:px-4">#</th>
-              <th className="px-3 py-3 sm:px-4">Ref Note</th>
-              <th className="px-3 py-3 sm:px-4">Ref Gauge</th>
-              <th className="px-3 py-3 sm:px-4">Ref T</th>
+              <th className="px-3 py-3 sm:px-4">{t.colRefNote}</th>
+              <th className="px-3 py-3 sm:px-4">{t.colRefGauge}</th>
+              <th className="px-3 py-3 sm:px-4">{t.colRefTension}</th>
               <th className="px-3 py-3 sm:px-4">→</th>
-              <th className="px-3 py-3 sm:px-4">Tgt Note</th>
-              <th className="px-3 py-3 sm:px-4">Rec Gauge</th>
-              <th className="px-3 py-3 sm:px-4">Tgt T</th>
+              <th className="px-3 py-3 sm:px-4">{t.colTargetNote}</th>
+              <th className="px-3 py-3 sm:px-4">{t.colRecGauge}</th>
+              <th className="px-3 py-3 sm:px-4">{t.colTargetTension}</th>
               <th className="px-3 py-3 sm:px-4">Δ</th>
             </tr>
           </thead>
@@ -578,10 +683,10 @@ function RecommendationTable({ rows }) {
                       <span className="flex flex-wrap gap-1 text-[10px] uppercase text-[#6b7280]">
                         <span>{targetRow.type}</span>
                         {recommendation?.source === "fallback" ? (
-                          <span className="text-[#fbbf24]">extrapolated</span>
+                          <span className="text-[#fbbf24]">{t.extrapolated}</span>
                         ) : null}
                         {noReference ? (
-                          <span className="text-[#9ca3af]">no ref · default</span>
+                          <span className="text-[#9ca3af]">{t.noRefDefault}</span>
                         ) : null}
                       </span>
                     </div>

@@ -2,6 +2,7 @@ import React, { useReducer } from "react";
 import {
   STRING_COUNT_OPTIONS,
   DEFAULT_PRESET_BY_COUNT,
+  DEFAULT_SCALE_BY_COUNT,
   NOTE_OPTIONS,
   TUNING_PRESETS,
   buildStringsForCount,
@@ -16,16 +17,18 @@ import {
   midiToLabel,
   noteToMidi,
   normalizeGaugeInput,
-  parseOptionalNumber,
+  resolveScaleEnds,
+  resolveScaleSettingsForCount,
   resolveUnitWeight,
+  stepGaugeInput,
+  stepMidi,
   toKg,
 } from "./src/lib/tension.js";
 
 function buildInitialState() {
   return {
     stringCount: 6,
-    scaleTreble: "25.5",
-    scaleBass: "25.5",
+    ...DEFAULT_SCALE_BY_COUNT[6],
     tuningPreset: DEFAULT_PRESET_BY_COUNT[6],
     strings: buildStringsForCount(6),
   };
@@ -38,6 +41,7 @@ function reducer(state, action) {
 
       return {
         ...state,
+        ...resolveScaleSettingsForCount(state, state.stringCount, nextCount),
         stringCount: nextCount,
         tuningPreset: DEFAULT_PRESET_BY_COUNT[nextCount],
         strings: buildStringsForCount(nextCount),
@@ -123,11 +127,75 @@ function summarySplit(row, stringCount) {
   return row.index < 4 ? { treble: row.tensionLbs, bass: 0 } : { treble: 0, bass: row.tensionLbs };
 }
 
-export default function StringTensionCalculator() {
+function StepButtons({ label, onStep, t }) {
+  return (
+    <div className="flex shrink-0 overflow-hidden rounded-lg border border-[#2a2a2a]">
+      <button
+        type="button"
+        aria-label={t.decrease(label)}
+        onClick={() => onStep(-1)}
+        className="flex w-5 items-center justify-center bg-[#171717] font-mono text-xs leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6]"
+      >
+        −
+      </button>
+      <button
+        type="button"
+        aria-label={t.increase(label)}
+        onClick={() => onStep(1)}
+        className="flex w-5 items-center justify-center border-l border-[#2a2a2a] bg-[#171717] font-mono text-xs leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6]"
+      >
+        +
+      </button>
+    </div>
+  );
+}
+
+function MultiscaleToggle({ checked, onChange, label }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-[#888] transition hover:text-[#d4d4d4]"
+    >
+      {label}
+      <span
+        className={`relative h-4 w-7 shrink-0 rounded-full border transition ${
+          checked ? "border-[#14b8a6] bg-[#14b8a6]/30" : "border-[#3f3f46] bg-[#111111]"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 left-0.5 h-2.5 w-2.5 rounded-full transition ${
+            checked ? "translate-x-3 bg-[#14b8a6]" : "bg-[#6b7280]"
+          }`}
+        />
+      </span>
+    </button>
+  );
+}
+
+function ScaleInput({ label, value, onChange }) {
+  return (
+    <label className="flex items-center gap-2 rounded-2xl border border-[#2a2a2a] bg-[#111111] px-3 transition focus-within:border-[#14b8a6]">
+      <span className="shrink-0 whitespace-nowrap text-[11px] uppercase tracking-[0.14em] text-[#6b7280]">{label}</span>
+      <input
+        type="number"
+        min="20"
+        max="40"
+        step="0.01"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full min-w-0 bg-transparent py-3 text-base text-white outline-none sm:py-2 sm:text-sm"
+      />
+    </label>
+  );
+}
+
+export default function StringTensionCalculator({ t }) {
   const [state, dispatch] = useReducer(reducer, undefined, buildInitialState);
 
-  const scaleTreble = parseOptionalNumber(state.scaleTreble);
-  const scaleBass = parseOptionalNumber(state.scaleBass);
+  const { scaleTreble, scaleBass } = resolveScaleEnds(state);
 
   const rows = state.strings.map((stringState, index) => {
     const scaleLength = interpolateScale(index, state.stringCount, scaleTreble, scaleBass);
@@ -175,13 +243,13 @@ export default function StringTensionCalculator() {
         <header className="space-y-2">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div className="space-y-2">
-              <h1 className="text-2xl font-semibold tracking-tight text-[#14b8a6] sm:text-3xl">String Tension Calculator</h1>
+              <h1 className="text-2xl font-semibold tracking-tight text-[#14b8a6] sm:text-3xl">{t.calcTitle}</h1>
               <p className="max-w-3xl text-sm leading-6 text-[#9ca3af]">
-                Multiscale calculation supported, and unit mass weight based on D&apos;Addario&apos;s published data.
+                {t.calcSubtitle}
               </p>
             </div>
             <div className="w-full rounded-2xl border border-[#2a2a2a] bg-[#171717] px-4 py-3 text-left sm:w-auto sm:text-right">
-              <p className="text-xs uppercase tracking-[0.18em] text-[#888]">Total Tension</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-[#888]">{t.totalTension}</p>
               <p className="font-mono text-2xl font-semibold text-white">{formatNumber(totalTension)} lbs</p>
               <p className="font-mono text-sm text-[#9ca3af]">{formatNumber(toKg(totalTension))} kg</p>
             </div>
@@ -190,7 +258,7 @@ export default function StringTensionCalculator() {
 
         <section className="grid grid-cols-1 gap-4 rounded-3xl border border-[#2a2a2a] bg-[#171717] p-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="space-y-3">
-            <p className="text-xs uppercase tracking-[0.18em] text-[#888]">String Count</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-[#888]">{t.stringCount}</p>
             <div className="flex gap-2">
               {STRING_COUNT_OPTIONS.map((count) => {
                 const active = count === state.stringCount;
@@ -211,37 +279,47 @@ export default function StringTensionCalculator() {
                 );
               })}
             </div>
-            <p className="text-xs text-[#6b7280]">Changing count resets notes, gauges, and types to the default set.</p>
+            <p className="text-xs text-[#6b7280]">{t.countResetNote}</p>
           </div>
 
-          <label className="space-y-3">
-            <span className="block text-xs uppercase tracking-[0.18em] text-[#888]">Treble Scale (in)</span>
-            <input
-              type="number"
-              min="20"
-              max="40"
-              step="0.01"
-              value={state.scaleTreble}
-              onChange={(event) => dispatch({ type: "setScale", key: "scaleTreble", value: event.target.value })}
-              className="w-full rounded-2xl border border-[#2a2a2a] bg-[#111111] px-3 py-3 text-base text-white outline-none ring-0 transition focus:border-[#14b8a6] sm:py-2 sm:text-sm"
-            />
-          </label>
+          <div className="@container space-y-3 xl:col-span-2">
+            <div className="flex items-center justify-between gap-3">
+              <span className="block text-xs uppercase tracking-[0.18em] text-[#888]">{t.scaleIn}</span>
+              <MultiscaleToggle
+                label={t.multiscale}
+                checked={state.multiscale}
+                onChange={(value) => dispatch({ type: "setScale", key: "multiscale", value })}
+              />
+            </div>
+            {state.multiscale ? (
+              <div className="grid grid-cols-1 gap-2 @min-[20rem]:grid-cols-2">
+                <ScaleInput
+                  label={t.trebleScale}
+                  value={state.scaleTreble}
+                  onChange={(value) => dispatch({ type: "setScale", key: "scaleTreble", value })}
+                />
+                <ScaleInput
+                  label={t.bassScale}
+                  value={state.scaleBass}
+                  onChange={(value) => dispatch({ type: "setScale", key: "scaleBass", value })}
+                />
+              </div>
+            ) : (
+              <input
+                type="number"
+                min="20"
+                max="40"
+                step="0.01"
+                aria-label={t.scaleIn}
+                value={state.scale}
+                onChange={(event) => dispatch({ type: "setScale", key: "scale", value: event.target.value })}
+                className="w-full rounded-2xl border border-[#2a2a2a] bg-[#111111] px-3 py-3 text-base text-white outline-none ring-0 transition focus:border-[#14b8a6] sm:py-2 sm:text-sm"
+              />
+            )}
+          </div>
 
-          <label className="space-y-3">
-            <span className="block text-xs uppercase tracking-[0.18em] text-[#888]">Bass Scale (in)</span>
-            <input
-              type="number"
-              min="20"
-              max="40"
-              step="0.01"
-              value={state.scaleBass}
-              onChange={(event) => dispatch({ type: "setScale", key: "scaleBass", value: event.target.value })}
-              className="w-full rounded-2xl border border-[#2a2a2a] bg-[#111111] px-3 py-3 text-base text-white outline-none ring-0 transition focus:border-[#14b8a6] sm:py-2 sm:text-sm"
-            />
-          </label>
-
-          <label className="space-y-3">
-            <span className="block text-xs uppercase tracking-[0.18em] text-[#888]">Tuning Preset</span>
+          <label className="space-y-3 sm:col-span-2 xl:col-span-1">
+            <span className="block text-xs uppercase tracking-[0.18em] text-[#888]">{t.tuningPreset}</span>
             <select
               value={state.tuningPreset}
               onChange={(event) => dispatch({ type: "setTuningPreset", value: event.target.value })}
@@ -252,7 +330,7 @@ export default function StringTensionCalculator() {
                   {preset.label}
                 </option>
               ))}
-              {state.tuningPreset === "custom" ? <option value="custom">Custom</option> : null}
+              {state.tuningPreset === "custom" ? <option value="custom">{t.custom}</option> : null}
             </select>
           </label>
         </section>
@@ -260,23 +338,23 @@ export default function StringTensionCalculator() {
         <section className="overflow-hidden rounded-3xl border border-[#2a2a2a] bg-[#171717]">
           <div className="flex flex-col gap-2 border-b border-[#2a2a2a] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-white">Per-string breakdown</h2>
-              <p className="text-sm text-[#888]">Unit weight resolves via embedded lookup first, then power-law fallback.</p>
+              <h2 className="text-lg font-semibold text-white">{t.breakdownTitle}</h2>
+              <p className="text-sm text-[#888]">{t.breakdownNote}</p>
             </div>
-            <p className="text-xs text-[#6b7280]">Swipe horizontally on mobile. Rows are highlighted when tension is more than 10% from the set mean.</p>
+            <p className="text-xs text-[#6b7280]">{t.breakdownHint}</p>
           </div>
 
           <div className="-mx-3 overflow-x-auto px-3 sm:mx-0 sm:px-0">
             <table className="min-w-[50rem] divide-y divide-[#2a2a2a] text-left text-sm sm:min-w-full">
               <thead className="bg-[#111111] text-xs uppercase tracking-[0.16em] text-[#888]">
                 <tr>
-                  <th className="px-3 py-3 sm:px-4">String</th>
-                  <th className="px-3 py-3 sm:px-4">Note</th>
-                  <th className="px-3 py-3 sm:px-4">Gauge</th>
-                  <th className="px-3 py-3 sm:px-4">Type</th>
-                  <th className="px-3 py-3 sm:px-4">Scale</th>
-                  <th className="px-3 py-3 sm:px-4">Tension</th>
-                  <th className="px-3 py-3 sm:px-4">Kg</th>
+                  <th className="px-3 py-3 sm:px-4">{t.colString}</th>
+                  <th className="px-3 py-3 sm:px-4">{t.colNote}</th>
+                  <th className="px-3 py-3 sm:px-4">{t.colGauge}</th>
+                  <th className="px-3 py-3 sm:px-4">{t.colType}</th>
+                  <th className="px-3 py-3 sm:px-4">{t.colScale}</th>
+                  <th className="px-3 py-3 sm:px-4">{t.colTension}</th>
+                  <th className="px-3 py-3 sm:px-4">{t.colKg}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#222222]">
@@ -294,44 +372,72 @@ export default function StringTensionCalculator() {
                     <tr key={row.stringNumber} className={toneClass}>
                       <td className="px-3 py-3 font-mono text-[#d4d4d4] sm:px-4">{row.stringNumber}</td>
                       <td className="px-3 py-3 sm:px-4">
-                        <div className="min-w-[6rem] sm:min-w-[7rem]">
-                          <select
-                            value={row.midi}
-                            onChange={(event) =>
-                              dispatch({
-                                type: "setStringField",
-                                index: row.index,
-                                key: "midi",
-                                value: Number(event.target.value),
-                              })
-                            }
-                            className="w-full rounded-xl border border-[#2a2a2a] bg-[#111111] px-2.5 py-3 text-sm text-white outline-none transition focus:border-[#14b8a6] sm:px-3 sm:py-2"
-                          >
-                            {NOTE_OPTIONS.map((note) => (
-                              <option key={note.midi} value={note.midi}>
-                                {note.label}
-                              </option>
-                            ))}
-                          </select>
+                        <div>
+                          <div className="flex items-stretch gap-1">
+                            <select
+                              value={row.midi}
+                              onChange={(event) =>
+                                dispatch({
+                                  type: "setStringField",
+                                  index: row.index,
+                                  key: "midi",
+                                  value: Number(event.target.value),
+                                })
+                              }
+                              className="w-[4.5rem] rounded-xl border border-[#2a2a2a] bg-[#111111] px-2 py-3 text-sm text-white outline-none transition focus:border-[#14b8a6] sm:w-20 sm:px-2.5 sm:py-2"
+                            >
+                              {NOTE_OPTIONS.map((note) => (
+                                <option key={note.midi} value={note.midi}>
+                                  {note.label}
+                                </option>
+                              ))}
+                            </select>
+                            <StepButtons
+                              label={t.pitchLabel(row.stringNumber)}
+                              t={t}
+                              onStep={(direction) =>
+                                dispatch({
+                                  type: "setStringField",
+                                  index: row.index,
+                                  key: "midi",
+                                  value: stepMidi(row.midi, direction),
+                                })
+                              }
+                            />
+                          </div>
                           <p className="mt-1 font-mono text-xs text-[#6b7280]">{formatNumber(row.frequency, 2)} Hz</p>
                         </div>
                       </td>
                       <td className="px-3 py-3 sm:px-4">
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          step={gaugeStepForString(row.index)}
-                          value={row.gaugeInput}
-                          onChange={(event) =>
-                            dispatch({
-                              type: "setStringField",
-                              index: row.index,
-                              key: "gaugeInput",
-                              value: event.target.value,
-                            })
-                          }
-                          className="w-20 rounded-xl border border-[#2a2a2a] bg-[#111111] px-2.5 py-3 font-mono text-sm text-white outline-none transition focus:border-[#14b8a6] sm:w-24 sm:px-3 sm:py-2"
-                        />
+                        <div className="flex items-stretch gap-1">
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            step={gaugeStepForString(row.index)}
+                            value={row.gaugeInput}
+                            onChange={(event) =>
+                              dispatch({
+                                type: "setStringField",
+                                index: row.index,
+                                key: "gaugeInput",
+                                value: event.target.value,
+                              })
+                            }
+                            className="w-14 rounded-xl border border-[#2a2a2a] bg-[#111111] px-2 py-3 font-mono text-sm text-white outline-none transition [appearance:textfield] focus:border-[#14b8a6] sm:w-16 sm:px-2.5 sm:py-2 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                          />
+                          <StepButtons
+                            label={t.gaugeLabel(row.stringNumber)}
+                            t={t}
+                            onStep={(direction) =>
+                              dispatch({
+                                type: "setStringField",
+                                index: row.index,
+                                key: "gaugeInput",
+                                value: stepGaugeInput(row.gaugeInput, direction, row.index),
+                              })
+                            }
+                          />
+                        </div>
                         <p className="mt-1 font-mono text-xs text-[#6b7280]">{formatGaugeDisplay(row.gaugeThousandths)}</p>
                       </td>
                       <td className="px-3 py-3 sm:px-4">
@@ -371,25 +477,25 @@ export default function StringTensionCalculator() {
 
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-3xl border border-[#2a2a2a] bg-[#171717] p-4">
-            <p className="text-xs uppercase tracking-[0.18em] text-[#888]">Total Tension</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-[#888]">{t.totalTension}</p>
             <p className="mt-2 font-mono text-2xl font-semibold text-white">{formatNumber(totalTension)} lbs</p>
             <p className="font-mono text-sm text-[#9ca3af]">{formatNumber(toKg(totalTension))} kg</p>
           </div>
 
           <div className="rounded-3xl border border-[#2a2a2a] bg-[#171717] p-4">
-            <p className="text-xs uppercase tracking-[0.18em] text-[#888]">Treble Side</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-[#888]">{t.trebleSide}</p>
             <p className="mt-2 font-mono text-2xl font-semibold text-white">{formatNumber(summary.treble)} lbs</p>
             <p className="font-mono text-sm text-[#9ca3af]">{formatNumber(toKg(summary.treble))} kg</p>
           </div>
 
           <div className="rounded-3xl border border-[#2a2a2a] bg-[#171717] p-4">
-            <p className="text-xs uppercase tracking-[0.18em] text-[#888]">Bass Side</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-[#888]">{t.bassSide}</p>
             <p className="mt-2 font-mono text-2xl font-semibold text-white">{formatNumber(summary.bass)} lbs</p>
             <p className="font-mono text-sm text-[#9ca3af]">{formatNumber(toKg(summary.bass))} kg</p>
           </div>
 
           <div className="rounded-3xl border border-[#2a2a2a] bg-[#171717] p-4">
-            <p className="text-xs uppercase tracking-[0.18em] text-[#888]">Imbalance</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-[#888]">{t.imbalance}</p>
             <p className="mt-2 font-mono text-2xl font-semibold text-white">{formatNumber(imbalance)} lbs</p>
             <p className="font-mono text-sm text-[#9ca3af]">{formatNumber(toKg(imbalance))} kg</p>
           </div>

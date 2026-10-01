@@ -7,6 +7,14 @@ export const DEFAULT_PRESET_BY_COUNT = {
   9: "standard-9",
 };
 
+// `scale` is used when multiscale is off; `scaleTreble`/`scaleBass` when it is on.
+export const DEFAULT_SCALE_BY_COUNT = {
+  6: { multiscale: false, scale: "25.5", scaleTreble: "24.75", scaleBass: "25.65" },
+  7: { multiscale: false, scale: "25.5", scaleTreble: "24.75", scaleBass: "25.65" },
+  8: { multiscale: true, scale: "25.5", scaleTreble: "25.5", scaleBass: "27.5" },
+  9: { multiscale: false, scale: "25.5", scaleTreble: "25.5", scaleBass: "25.5" },
+};
+
 export const NOTE_LABELS = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
 
 export const NOTE_TO_SEMITONE = {
@@ -251,6 +259,26 @@ export function gaugeStepForString(index) {
   return index < 2 ? 0.5 : 1;
 }
 
+export function stepGaugeInput(rawValue, direction, index) {
+  const current = normalizeGaugeInput(rawValue);
+
+  if (current === null) {
+    return rawValue;
+  }
+
+  const next = current + direction * gaugeStepForString(index);
+
+  // Values below 1 would be re-read as inches by normalizeGaugeInput.
+  return next >= 1 ? String(Number(next.toFixed(3))) : rawValue;
+}
+
+export function stepMidi(midi, direction) {
+  const minMidi = NOTE_OPTIONS[0].midi;
+  const maxMidi = NOTE_OPTIONS[NOTE_OPTIONS.length - 1].midi;
+
+  return Math.min(maxMidi, Math.max(minMidi, midi + direction));
+}
+
 export function parseOptionalNumber(rawValue) {
   if (rawValue.trim() === "") {
     return Number.NaN;
@@ -305,6 +333,31 @@ export function detectPresetKey(count, strings) {
   );
 
   return matchingPreset?.key ?? "custom";
+}
+
+// Fields still at the previous count's default follow the new count's default; edited fields are kept.
+export function resolveScaleSettingsForCount(current, prevCount, nextCount) {
+  const prevDefaults = DEFAULT_SCALE_BY_COUNT[prevCount];
+  const nextDefaults = DEFAULT_SCALE_BY_COUNT[nextCount];
+
+  return Object.fromEntries(
+    Object.keys(nextDefaults).map((key) => [
+      key,
+      current[key] === prevDefaults[key] ? nextDefaults[key] : current[key],
+    ]),
+  );
+}
+
+export function resolveScaleEnds(settings) {
+  if (!settings.multiscale) {
+    const scale = parseOptionalNumber(settings.scale);
+    return { scaleTreble: scale, scaleBass: scale };
+  }
+
+  return {
+    scaleTreble: parseOptionalNumber(settings.scaleTreble),
+    scaleBass: parseOptionalNumber(settings.scaleBass),
+  };
 }
 
 export function buildStringsForCount(count) {
