@@ -129,12 +129,12 @@ function summarySplit(row, stringCount) {
 
 function StepButtons({ label, onStep, t }) {
   return (
-    <div className="flex shrink-0 overflow-hidden rounded-lg border border-[#2a2a2a]">
+    <div className="flex shrink-0 gap-1.5">
       <button
         type="button"
         aria-label={t.decrease(label)}
         onClick={() => onStep(-1)}
-        className="flex w-5 items-center justify-center bg-[#171717] font-mono text-xs leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6]"
+        className="flex w-9 touch-manipulation select-none items-center justify-center rounded-lg border border-[#2a2a2a] bg-[#171717] font-mono text-base leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6] active:bg-[#262626] sm:w-7 sm:text-sm"
       >
         −
       </button>
@@ -142,7 +142,7 @@ function StepButtons({ label, onStep, t }) {
         type="button"
         aria-label={t.increase(label)}
         onClick={() => onStep(1)}
-        className="flex w-5 items-center justify-center border-l border-[#2a2a2a] bg-[#171717] font-mono text-xs leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6]"
+        className="flex w-9 touch-manipulation select-none items-center justify-center rounded-lg border border-[#2a2a2a] bg-[#171717] font-mono text-base leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6] active:bg-[#262626] sm:w-7 sm:text-sm"
       >
         +
       </button>
@@ -373,7 +373,7 @@ export default function StringTensionCalculator({ t }) {
                       <td className="px-3 py-3 font-mono text-[#d4d4d4] sm:px-4">{row.stringNumber}</td>
                       <td className="px-3 py-3 sm:px-4">
                         <div>
-                          <div className="flex items-stretch gap-1">
+                          <div className="flex items-stretch gap-1.5">
                             <select
                               value={row.midi}
                               onChange={(event) =>
@@ -409,7 +409,7 @@ export default function StringTensionCalculator({ t }) {
                         </div>
                       </td>
                       <td className="px-3 py-3 sm:px-4">
-                        <div className="flex items-stretch gap-1">
+                        <div className="flex items-stretch gap-1.5">
                           <input
                             type="number"
                             inputMode="decimal"
