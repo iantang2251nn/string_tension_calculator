@@ -279,6 +279,20 @@ export function stepMidi(midi, direction) {
   return Math.min(maxMidi, Math.max(minMidi, midi + direction));
 }
 
+// Shifts every string by a semitone, or leaves the set unchanged if any string would leave the note range.
+export function transposeStrings(strings, direction) {
+  const fitsRange = strings.every((stringState) => stepMidi(stringState.midi, direction) === stringState.midi + direction);
+
+  return fitsRange ? strings.map((stringState) => ({ ...stringState, midi: stringState.midi + direction })) : strings;
+}
+
+export function stepAllGauges(strings, direction) {
+  return strings.map((stringState, index) => ({
+    ...stringState,
+    gaugeInput: stepGaugeInput(stringState.gaugeInput, direction, index),
+  }));
+}
+
 export function parseOptionalNumber(rawValue) {
   if (rawValue.trim() === "") {
     return Number.NaN;

@@ -20,8 +20,10 @@ import {
   resolveScaleEnds,
   resolveScaleSettingsForCount,
   resolveUnitWeight,
+  stepAllGauges,
   stepGaugeInput,
   stepMidi,
+  transposeStrings,
   toKg,
 } from "./src/lib/tension.js";
 
@@ -86,6 +88,22 @@ function reducer(state, action) {
       };
     }
 
+    case "transposeAll": {
+      const strings = transposeStrings(state.strings, action.direction);
+
+      return {
+        ...state,
+        strings,
+        tuningPreset: detectPresetKey(state.stringCount, strings),
+      };
+    }
+
+    case "stepAllGauges":
+      return {
+        ...state,
+        strings: stepAllGauges(state.strings, action.direction),
+      };
+
     default:
       return state;
   }
@@ -127,14 +145,14 @@ function summarySplit(row, stringCount) {
   return row.index < 4 ? { treble: row.tensionLbs, bass: 0 } : { treble: 0, bass: row.tensionLbs };
 }
 
-function StepButtons({ label, onStep, t }) {
+function StepButtons({ label, onStep, t, className = "" }) {
   return (
-    <div className="flex shrink-0 gap-1.5">
+    <div className={`flex shrink-0 gap-1.5 ${className}`}>
       <button
         type="button"
         aria-label={t.decrease(label)}
         onClick={() => onStep(-1)}
-        className="flex w-9 touch-manipulation select-none items-center justify-center rounded-lg border border-[#2a2a2a] bg-[#171717] font-mono text-base leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6] active:bg-[#262626] sm:w-7 sm:text-sm"
+        className="flex w-9 touch-manipulation select-none items-center justify-center rounded-lg border border-[#2a2a2a] bg-[#171717] font-mono text-base font-normal leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6] active:bg-[#262626] sm:w-7 sm:text-sm"
       >
         −
       </button>
@@ -142,7 +160,7 @@ function StepButtons({ label, onStep, t }) {
         type="button"
         aria-label={t.increase(label)}
         onClick={() => onStep(1)}
-        className="flex w-9 touch-manipulation select-none items-center justify-center rounded-lg border border-[#2a2a2a] bg-[#171717] font-mono text-base leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6] active:bg-[#262626] sm:w-7 sm:text-sm"
+        className="flex w-9 touch-manipulation select-none items-center justify-center rounded-lg border border-[#2a2a2a] bg-[#171717] font-mono text-base font-normal leading-none text-[#9ca3af] transition hover:bg-[#262626] hover:text-[#14b8a6] active:bg-[#262626] sm:w-7 sm:text-sm"
       >
         +
       </button>
@@ -349,8 +367,28 @@ export default function StringTensionCalculator({ t }) {
               <thead className="bg-[#111111] text-xs uppercase tracking-[0.16em] text-[#888]">
                 <tr>
                   <th className="px-3 py-3 sm:px-4">{t.colString}</th>
-                  <th className="px-3 py-3 sm:px-4">{t.colNote}</th>
-                  <th className="px-3 py-3 sm:px-4">{t.colGauge}</th>
+                  <th className="px-3 py-3 sm:px-4">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-[4.5rem] sm:w-20">{t.colNote}</span>
+                      <StepButtons
+                        label={t.allPitchLabel}
+                        t={t}
+                        className="h-9 sm:h-8"
+                        onStep={(direction) => dispatch({ type: "transposeAll", direction })}
+                      />
+                    </div>
+                  </th>
+                  <th className="px-3 py-3 sm:px-4">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-14 sm:w-16">{t.colGauge}</span>
+                      <StepButtons
+                        label={t.allGaugeLabel}
+                        t={t}
+                        className="h-9 sm:h-8"
+                        onStep={(direction) => dispatch({ type: "stepAllGauges", direction })}
+                      />
+                    </div>
+                  </th>
                   <th className="px-3 py-3 sm:px-4">{t.colType}</th>
                   <th className="px-3 py-3 sm:px-4">{t.colScale}</th>
                   <th className="px-3 py-3 sm:px-4">{t.colTension}</th>
