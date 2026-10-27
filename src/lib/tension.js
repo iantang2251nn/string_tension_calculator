@@ -481,10 +481,26 @@ const BASS_DEFAULT_GAUGES = {
 const BASS_TUNING_PRESETS = {
   4: [{ key: "standard-bass-4", label: "Standard", notes: ["G2", "D2", "A1", "E1"] }],
   5: [{ key: "standard-bass-5", label: "Standard", notes: ["G2", "D2", "A1", "E1", "B0"] }],
+  // Presets with `gauges` also load that set: Dingwall nickel long-scale 6-string 30-130 and F# tuning 45-170.
   6: [
-    { key: "standard-bass-6", label: "Standard", notes: ["C3", "G2", "D2", "A1", "E1", "B0"] },
-    { key: "f-sharp-standard-bass-6", label: "F# Standard", notes: ["G2", "D2", "A1", "E1", "B0", "F#0"] },
-    { key: "drop-e-bass-6", label: "Drop E", notes: ["G2", "D2", "A1", "E1", "B0", "E0"] },
+    {
+      key: "standard-bass-6",
+      label: "Standard",
+      notes: ["C3", "G2", "D2", "A1", "E1", "B0"],
+      gauges: ["30", "45", "55", "80", "100", "130"],
+    },
+    {
+      key: "f-sharp-standard-bass-6",
+      label: "F# Standard",
+      notes: ["G2", "D2", "A1", "E1", "B0", "F#0"],
+      gauges: ["45", "55", "80", "100", "130", "170"],
+    },
+    {
+      key: "drop-e-bass-6",
+      label: "Drop E",
+      notes: ["G2", "D2", "A1", "E1", "B0", "E0"],
+      gauges: ["45", "55", "80", "100", "130", "170"],
+    },
   ],
 };
 

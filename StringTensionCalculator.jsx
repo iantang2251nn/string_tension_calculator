@@ -64,6 +64,7 @@ const createReducer = (instrument) => function reducer(state, action) {
         strings: state.strings.map((stringState, index) => ({
           ...stringState,
           midi: noteToMidi(preset.notes[index]),
+          ...(preset.gauges ? { gaugeInput: preset.gauges[index] } : {}),
         })),
       };
     }
