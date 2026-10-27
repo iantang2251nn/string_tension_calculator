@@ -259,38 +259,40 @@ export function gaugeStepForString(index) {
   return index < 2 ? 0.5 : 1;
 }
 
-export function stepGaugeInput(rawValue, direction, index) {
+export function stepGaugeInput(rawValue, direction, index, instrument = GUITAR) {
   const current = normalizeGaugeInput(rawValue);
 
   if (current === null) {
     return rawValue;
   }
 
-  const next = current + direction * gaugeStepForString(index);
+  const next = current + direction * instrument.gaugeStep(index);
 
   // Values below 1 would be re-read as inches by normalizeGaugeInput.
   return next >= 1 ? String(Number(next.toFixed(3))) : rawValue;
 }
 
-export function stepMidi(midi, direction) {
-  const minMidi = NOTE_OPTIONS[0].midi;
-  const maxMidi = NOTE_OPTIONS[NOTE_OPTIONS.length - 1].midi;
+export function stepMidi(midi, direction, instrument = GUITAR) {
+  const minMidi = instrument.noteOptions[0].midi;
+  const maxMidi = instrument.noteOptions[instrument.noteOptions.length - 1].midi;
 
   return Math.min(maxMidi, Math.max(minMidi, midi + direction));
 }
 
 // Shifts every string by a semitone, or leaves the set unchanged if any string would leave the note range.
-export function transposeStrings(strings, direction) {
-  const fitsRange = strings.every((stringState) => stepMidi(stringState.midi, direction) === stringState.midi + direction);
+export function transposeStrings(strings, direction, instrument = GUITAR) {
+  const fitsRange = strings.every(
+    (stringState) => stepMidi(stringState.midi, direction, instrument) === stringState.midi + direction,
+  );
 
   return fitsRange ? strings.map((stringState) => ({ ...stringState, midi: stringState.midi + direction })) : strings;
 }
 
-export function stepAllGauges(strings, direction) {
+export function stepAllGauges(strings, direction, instrument = GUITAR) {
   return strings.map((stringState, index) =>
     stringState.gaugeInput === undefined
       ? stringState
-      : { ...stringState, gaugeInput: stepGaugeInput(stringState.gaugeInput, direction, index) },
+      : { ...stringState, gaugeInput: stepGaugeInput(stringState.gaugeInput, direction, index, instrument) },
   );
 }
 
@@ -338,12 +340,13 @@ export function calculateTension(unitWeight, scaleLength, frequency) {
   return (unitWeight * (2 * scaleLength * frequency) ** 2) / 386.4;
 }
 
-export function getPresetByKey(count, key) {
-  return TUNING_PRESETS[count].find((preset) => preset.key === key) ?? TUNING_PRESETS[count][0];
+export function getPresetByKey(count, key, instrument = GUITAR) {
+  const presets = instrument.tuningPresets[count];
+  return presets.find((preset) => preset.key === key) ?? presets[0];
 }
 
-export function detectPresetKey(count, strings) {
-  const matchingPreset = TUNING_PRESETS[count].find((preset) =>
+export function detectPresetKey(count, strings, instrument = GUITAR) {
+  const matchingPreset = instrument.tuningPresets[count].find((preset) =>
     preset.notes.every((note, index) => noteToMidi(note) === strings[index].midi),
   );
 
@@ -351,9 +354,9 @@ export function detectPresetKey(count, strings) {
 }
 
 // Fields still at the previous count's default follow the new count's default; edited fields are kept.
-export function resolveScaleSettingsForCount(current, prevCount, nextCount) {
-  const prevDefaults = DEFAULT_SCALE_BY_COUNT[prevCount];
-  const nextDefaults = DEFAULT_SCALE_BY_COUNT[nextCount];
+export function resolveScaleSettingsForCount(current, prevCount, nextCount, instrument = GUITAR) {
+  const prevDefaults = instrument.defaultScaleByCount[prevCount];
+  const nextDefaults = instrument.defaultScaleByCount[nextCount];
 
   return Object.fromEntries(
     Object.keys(nextDefaults).map((key) => [
@@ -375,13 +378,13 @@ export function resolveScaleEnds(settings) {
   };
 }
 
-export function buildStringsForCount(count) {
-  const preset = getPresetByKey(count, DEFAULT_PRESET_BY_COUNT[count]);
+export function buildStringsForCount(count, instrument = GUITAR) {
+  const preset = getPresetByKey(count, instrument.defaultPresetByCount[count], instrument);
 
   return preset.notes.map((note, index) => ({
     midi: noteToMidi(note),
-    gaugeInput: DEFAULT_GAUGES[count][index],
-    type: index < 3 ? "PL" : "NW",
+    gaugeInput: instrument.defaultGauges[count][index],
+    type: instrument.defaultType(index),
   }));
 }
 
@@ -437,3 +440,165 @@ export function recommendGauge({ referenceTensionLbs, targetScale, targetFrequen
   best.outOfRange = false;
   return best;
 }
+
+export const GUITAR = {
+  key: "guitar",
+  stringCounts: STRING_COUNT_OPTIONS,
+  defaultCount: 6,
+  tuningPresets: TUNING_PRESETS,
+  defaultPresetByCount: DEFAULT_PRESET_BY_COUNT,
+  defaultGauges: DEFAULT_GAUGES,
+  defaultScaleByCount: DEFAULT_SCALE_BY_COUNT,
+  noteOptions: NOTE_OPTIONS,
+  defaultType: (index) => (index < 3 ? "PL" : "NW"),
+  gaugeStep: gaugeStepForString,
+  resolveUnitWeight,
+  recommendGauge,
+};
+
+// ---- Bass ----
+
+function buildNoteOptions(minMidi, maxMidi) {
+  return Array.from({ length: maxMidi - minMidi + 1 }, (_, index) => {
+    const midi = minMidi + index;
+    return { midi, label: midiToLabel(midi), frequency: midiToFrequency(midi) };
+  });
+}
+
+// Dingwall long-scale geometry and stock nickel-plated sets (dingwallguitars.com specs/FAQ, dingwallstore.com).
+const BASS_DEFAULT_SCALE_BY_COUNT = {
+  4: { multiscale: true, scale: "34", scaleTreble: "34", scaleBass: "36.25" },
+  5: { multiscale: true, scale: "34", scaleTreble: "34", scaleBass: "37" },
+  6: { multiscale: true, scale: "34", scaleTreble: "33.25", scaleBass: "37" },
+};
+
+const BASS_DEFAULT_GAUGES = {
+  4: ["45", "55", "80", "100"],
+  5: ["45", "55", "80", "100", "130"],
+  6: ["30", "45", "55", "80", "100", "130"],
+};
+
+const BASS_TUNING_PRESETS = {
+  4: [{ key: "standard-bass-4", label: "Standard", notes: ["G2", "D2", "A1", "E1"] }],
+  5: [{ key: "standard-bass-5", label: "Standard", notes: ["G2", "D2", "A1", "E1", "B0"] }],
+  6: [
+    { key: "standard-bass-6", label: "Standard", notes: ["C3", "G2", "D2", "A1", "E1", "B0"] },
+    { key: "f-sharp-standard-bass-6", label: "F# Standard", notes: ["G2", "D2", "A1", "E1", "B0", "F#0"] },
+    { key: "drop-e-bass-6", label: "Drop E", notes: ["G2", "D2", "A1", "E1", "B0", "E0"] },
+  ],
+};
+
+// Wound gauges Kalium sells as single bass strings (kaliummusic.com tension calculator data).
+const BASS_WOUND_GAUGES = [
+  24, 25, 26, 27, 28, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59, 61, 63, 65, 67, 70, 73, 76, 79,
+  82, 86, 90, 94, 98, 102, 106, 110, 114, 118, 124, 130, 136, 142, 148, 154, 160, 168, 176, 184, 192, 200, 208, 216,
+  226, 236, 246, 256, 266,
+];
+
+// Blended wound-string unit weight: geometric mean of smooth fits (ln UW = a + b ln g + c ln^2 g, g in inches) to
+// Kalium's published unit weights (.021-.266) and D'Addario's (guitar NW table + XL bass values derived from official
+// per-string tensions, .017-.135). Above .135 the Kalium curve is used with the brand gap held at its .135 value.
+// The two brands sit about +-5% either side of this curve.
+const KALIUM_WOUND_FIT = [-1.673859660634048, 2.0486053917919924, 0.02221337000131176];
+const DADDARIO_WOUND_FIT = [-2.0831487649316185, 1.8028727869364538, -0.022911543508229507];
+const DADDARIO_MAX_GAUGE = 0.135;
+
+function evaluateFit([a, b, c], gaugeInches) {
+  const x = Math.log(gaugeInches);
+  return Math.exp(a + b * x + c * x * x);
+}
+
+export function bassWoundUnitWeight(gaugeInches) {
+  const kalium = evaluateFit(KALIUM_WOUND_FIT, gaugeInches);
+
+  if (gaugeInches <= DADDARIO_MAX_GAUGE) {
+    return Math.sqrt(kalium * evaluateFit(DADDARIO_WOUND_FIT, gaugeInches));
+  }
+
+  const brandRatio = evaluateFit(KALIUM_WOUND_FIT, DADDARIO_MAX_GAUGE) / evaluateFit(DADDARIO_WOUND_FIT, DADDARIO_MAX_GAUGE);
+  return kalium / Math.sqrt(brandRatio);
+}
+
+export function resolveBassUnitWeight(gaugeThousandths, type) {
+  if (!Number.isFinite(gaugeThousandths)) {
+    return { unitWeight: 0, source: "invalid" };
+  }
+
+  if (type === "PL") {
+    return resolveUnitWeight(gaugeThousandths, type);
+  }
+
+  return { unitWeight: bassWoundUnitWeight(gaugeThousandths / 1000), source: "estimate" };
+}
+
+export function recommendBassGauge({ referenceTensionLbs, targetScale, targetFrequency, type }) {
+  if (type === "PL") {
+    return recommendGauge({ referenceTensionLbs, targetScale, targetFrequency, type });
+  }
+
+  if (
+    !Number.isFinite(referenceTensionLbs) ||
+    referenceTensionLbs <= 0 ||
+    !Number.isFinite(targetScale) ||
+    !Number.isFinite(targetFrequency) ||
+    targetScale <= 0 ||
+    targetFrequency <= 0
+  ) {
+    return null;
+  }
+
+  let best = null;
+  for (const gauge of BASS_WOUND_GAUGES) {
+    const unitWeight = bassWoundUnitWeight(gauge / 1000);
+    const tensionLbs = calculateTension(unitWeight, targetScale, targetFrequency);
+    const deltaLbs = tensionLbs - referenceTensionLbs;
+
+    if (!best || Math.abs(deltaLbs) < Math.abs(best.deltaLbs)) {
+      best = { gauge, unitWeight, tensionLbs, deltaLbs, source: "lookup" };
+    }
+  }
+
+  const atEdge = best.gauge === BASS_WOUND_GAUGES[0] || best.gauge === BASS_WOUND_GAUGES[BASS_WOUND_GAUGES.length - 1];
+
+  if (atEdge && Math.abs(best.deltaLbs) > 1) {
+    // Solve the blended curve for the exact gauge (it increases monotonically with gauge).
+    const uwIdeal = (referenceTensionLbs * 386.4) / (2 * targetScale * targetFrequency) ** 2;
+    let low = Math.log(0.005);
+    let high = Math.log(0.5);
+    for (let step = 0; step < 60; step += 1) {
+      const mid = (low + high) / 2;
+      if (bassWoundUnitWeight(Math.exp(mid)) < uwIdeal) low = mid;
+      else high = mid;
+    }
+    const tensionLbs = calculateTension(uwIdeal, targetScale, targetFrequency);
+
+    return {
+      gauge: Math.exp((low + high) / 2) * 1000,
+      unitWeight: uwIdeal,
+      tensionLbs,
+      deltaLbs: tensionLbs - referenceTensionLbs,
+      source: "fallback",
+      outOfRange: true,
+    };
+  }
+
+  best.outOfRange = false;
+  return best;
+}
+
+export const BASS = {
+  key: "bass",
+  stringCounts: [4, 5, 6],
+  defaultCount: 5,
+  tuningPresets: BASS_TUNING_PRESETS,
+  defaultPresetByCount: { 4: "standard-bass-4", 5: "standard-bass-5", 6: "standard-bass-6" },
+  defaultGauges: BASS_DEFAULT_GAUGES,
+  defaultScaleByCount: BASS_DEFAULT_SCALE_BY_COUNT,
+  noteOptions: buildNoteOptions(12, 72),
+  defaultType: () => "NW",
+  gaugeStep: () => 1,
+  resolveUnitWeight: resolveBassUnitWeight,
+  recommendGauge: recommendBassGauge,
+};
+
+export const INSTRUMENTS = { guitar: GUITAR, bass: BASS };
