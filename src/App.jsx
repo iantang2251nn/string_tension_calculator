@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import StringTensionCalculator from "../StringTensionCalculator.jsx";
 import TensionTranslator from "../TensionTranslator.jsx";
+import { INSTRUMENTS } from "./lib/tension.js";
 
 const MODES = ["calculator", "translator"];
 
@@ -10,12 +11,14 @@ const LANGUAGES = [
 ];
 
 const LANG_STORAGE_KEY = "string-tension-calculator:lang";
+const INSTRUMENT_STORAGE_KEY = "string-tension-calculator:instrument";
 
 // Tuning preset names (Standard, Drop D, ...) and note names stay in English in every language.
 const STRINGS = {
   en: {
     pageTitle: "String Tension Calculator",
     modes: { calculator: "Calculator", translator: "Translation Guide" },
+    instruments: { guitar: "Guitar", bass: "Bass" },
     multiscale: "Multiscale",
     trebleScale: "Treble",
     bassScale: "Bass",
@@ -65,10 +68,19 @@ const STRINGS = {
     colTargetTension: "Tgt T",
     extrapolated: "extrapolated",
     noRefDefault: "no ref · default",
+    // Bass mode replaces these entries.
+    bass: {
+      calcSubtitle:
+        "Multiscale calculation supported. Bass unit weights blend Kalium and D'Addario data (estimate, ±5%).",
+      breakdownNote: "Wound unit weights come from a blended Kalium + D'Addario curve (±5%).",
+      recNote:
+        "Picks the closest gauge from Kalium singles, Dingwall and D'Addario bass sets, or the reference string's own gauge, using the blended bass unit weights (±5%); falls back to a continuous estimate outside that range.",
+    },
   },
   zh: {
     pageTitle: "琴弦张力计算器",
     modes: { calculator: "张力计算器", translator: "张力换算" },
+    instruments: { guitar: "吉他", bass: "贝斯" },
     multiscale: "扇品",
     trebleScale: "高音侧弦长",
     bassScale: "低音侧弦长",
@@ -117,6 +129,12 @@ const STRINGS = {
     colTargetTension: "目标张力",
     extrapolated: "外推估算",
     noRefDefault: "无参考 · 默认",
+    bass: {
+      calcSubtitle: "支持扇品计算。贝斯单位重量综合 Kalium 与达达里奥数据（估算，±5%）。",
+      breakdownNote: "缠弦单位重量来自 Kalium 与达达里奥数据的综合曲线（±5%）。PL = 裸弦，NW = 镍缠弦。",
+      recNote:
+        "从 Kalium 单根弦、Dingwall 与达达里奥贝斯套弦规格及参考弦本身的规格中选取最接近者，基于综合贝斯单位重量（±5%）；超出范围时改用连续估算。PL = 裸弦，NW = 镍缠弦。",
+    },
   },
 };
 
@@ -131,10 +149,25 @@ function detectInitialLang() {
   return navigator.language?.toLowerCase().startsWith("zh") ? "zh" : "en";
 }
 
+function detectInitialInstrument() {
+  try {
+    const stored = window.localStorage.getItem(INSTRUMENT_STORAGE_KEY);
+    if (stored in INSTRUMENTS) return stored;
+  } catch {
+    // Storage can be unavailable (private mode, blocked site data).
+  }
+
+  return "guitar";
+}
+
 export default function App() {
   const [mode, setMode] = useState("calculator");
   const [lang, setLang] = useState(detectInitialLang);
-  const t = STRINGS[lang];
+  const [instrument, setInstrument] = useState(detectInitialInstrument);
+  const t = useMemo(
+    () => (instrument === "bass" ? { ...STRINGS[lang], ...STRINGS[lang].bass } : STRINGS[lang]),
+    [lang, instrument],
+  );
 
   useEffect(() => {
     document.documentElement.lang = LANGUAGES.find((option) => option.key === lang).htmlLang;
@@ -147,10 +180,39 @@ export default function App() {
     }
   }, [lang, t]);
 
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(INSTRUMENT_STORAGE_KEY, instrument);
+    } catch {
+      // Ignore: the choice just won't persist.
+    }
+  }, [instrument]);
+
   return (
     <div className="min-h-screen bg-[#0f0f0f]">
       <nav className="border-b border-[#1a1a1a] bg-[#0f0f0f]">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-2 px-3 pt-4 pb-3 sm:px-6 sm:pt-5 lg:px-8">
+          <div className="flex gap-1.5 rounded-2xl border border-[#2a2a2a] bg-[#111111] p-1">
+            {Object.keys(INSTRUMENTS).map((key) => {
+              const active = key === instrument;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setInstrument(key)}
+                  aria-pressed={active}
+                  className={`whitespace-nowrap rounded-xl px-2.5 py-1.5 text-sm font-medium transition sm:px-4 ${
+                    active
+                      ? "bg-[#14b8a6]/15 text-[#ccfbf1]"
+                      : "text-[#9ca3af] hover:text-[#e5e5e5]"
+                  }`}
+                >
+                  {t.instruments[key]}
+                </button>
+              );
+            })}
+          </div>
+
           <div className="flex gap-1.5 rounded-2xl border border-[#2a2a2a] bg-[#111111] p-1">
             {MODES.map((key) => {
               const active = key === mode;
@@ -196,7 +258,11 @@ export default function App() {
         </div>
       </nav>
 
-      {mode === "calculator" ? <StringTensionCalculator t={t} /> : <TensionTranslator t={t} />}
+      {mode === "calculator" ? (
+        <StringTensionCalculator key={instrument} t={t} instrument={INSTRUMENTS[instrument]} />
+      ) : (
+        <TensionTranslator key={instrument} t={t} instrument={INSTRUMENTS[instrument]} />
+      )}
     </div>
   );
 }

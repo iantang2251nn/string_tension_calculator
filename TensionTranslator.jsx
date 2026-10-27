@@ -1,27 +1,18 @@
-import React, { useReducer } from "react";
+import React, { useMemo, useReducer } from "react";
 import {
-  STRING_COUNT_OPTIONS,
-  DEFAULT_GAUGES,
-  DEFAULT_PRESET_BY_COUNT,
-  DEFAULT_SCALE_BY_COUNT,
-  NOTE_OPTIONS,
-  TUNING_PRESETS,
   buildStringsForCount,
   calculateTension,
   detectPresetKey,
   formatGaugeDisplay,
   formatNumber,
-  gaugeStepForString,
   getPresetByKey,
   interpolateScale,
   midiToFrequency,
   midiToLabel,
   noteToMidi,
   normalizeGaugeInput,
-  recommendGauge,
   resolveScaleEnds,
   resolveScaleSettingsForCount,
-  resolveUnitWeight,
   stepAllGauges,
   stepGaugeInput,
   stepMidi,
@@ -29,20 +20,20 @@ import {
   toKg,
 } from "./src/lib/tension.js";
 
-function buildSideStrings(count, { withGauges }) {
-  const preset = getPresetByKey(count, DEFAULT_PRESET_BY_COUNT[count]);
+function buildSideStrings(count, { withGauges }, instrument) {
+  const preset = getPresetByKey(count, instrument.defaultPresetByCount[count], instrument);
 
   return preset.notes.map((note, index) => {
     const base = {
       midi: noteToMidi(note),
-      type: index < 3 ? "PL" : "NW",
+      type: instrument.defaultType(index),
     };
 
-    return withGauges ? { ...base, gaugeInput: DEFAULT_GAUGES[count][index] } : base;
+    return withGauges ? { ...base, gaugeInput: instrument.defaultGauges[count][index] } : base;
   });
 }
 
-function resizeStrings(currentStrings, nextCount, { withGauges }) {
+function resizeStrings(currentStrings, nextCount, { withGauges }, instrument) {
   if (currentStrings.length === nextCount) {
     return currentStrings;
   }
@@ -51,41 +42,43 @@ function resizeStrings(currentStrings, nextCount, { withGauges }) {
     return currentStrings.slice(0, nextCount);
   }
 
-  const preset = getPresetByKey(nextCount, DEFAULT_PRESET_BY_COUNT[nextCount]);
+  const preset = getPresetByKey(nextCount, instrument.defaultPresetByCount[nextCount], instrument);
   const filled = [...currentStrings];
 
   for (let index = currentStrings.length; index < nextCount; index += 1) {
     const note = preset.notes[index];
     const next = {
       midi: noteToMidi(note),
-      type: index < 3 ? "PL" : "NW",
+      type: instrument.defaultType(index),
     };
 
-    filled.push(withGauges ? { ...next, gaugeInput: DEFAULT_GAUGES[nextCount][index] } : next);
+    filled.push(withGauges ? { ...next, gaugeInput: instrument.defaultGauges[nextCount][index] } : next);
   }
 
   return filled;
 }
 
-function buildInitialState() {
+function buildInitialState(instrument) {
+  const count = instrument.defaultCount;
+
   return {
-    refCount: 6,
-    targetCount: 6,
+    refCount: count,
+    targetCount: count,
     targetCountLinked: true,
     reference: {
-      ...DEFAULT_SCALE_BY_COUNT[6],
-      tuningPreset: DEFAULT_PRESET_BY_COUNT[6],
-      strings: buildStringsForCount(6),
+      ...instrument.defaultScaleByCount[count],
+      tuningPreset: instrument.defaultPresetByCount[count],
+      strings: buildStringsForCount(count, instrument),
     },
     target: {
-      ...DEFAULT_SCALE_BY_COUNT[6],
-      tuningPreset: DEFAULT_PRESET_BY_COUNT[6],
-      strings: buildSideStrings(6, { withGauges: false }),
+      ...instrument.defaultScaleByCount[count],
+      tuningPreset: instrument.defaultPresetByCount[count],
+      strings: buildSideStrings(count, { withGauges: false }, instrument),
     },
   };
 }
 
-function reducer(state, action) {
+const createReducer = (instrument) => function reducer(state, action) {
   switch (action.type) {
     case "setRefCount": {
       const nextCount = action.value;
@@ -93,20 +86,20 @@ function reducer(state, action) {
 
       const reference = {
         ...state.reference,
-        ...resolveScaleSettingsForCount(state.reference, state.refCount, nextCount),
-        strings: resizeStrings(state.reference.strings, nextCount, { withGauges: true }),
+        ...resolveScaleSettingsForCount(state.reference, state.refCount, nextCount, instrument),
+        strings: resizeStrings(state.reference.strings, nextCount, { withGauges: true }, instrument),
       };
-      reference.tuningPreset = detectPresetKey(nextCount, reference.strings);
+      reference.tuningPreset = detectPresetKey(nextCount, reference.strings, instrument);
 
       const next = { ...state, refCount: nextCount, reference };
 
       if (state.targetCountLinked) {
         const target = {
           ...state.target,
-          ...resolveScaleSettingsForCount(state.target, state.targetCount, nextCount),
-          strings: resizeStrings(state.target.strings, nextCount, { withGauges: false }),
+          ...resolveScaleSettingsForCount(state.target, state.targetCount, nextCount, instrument),
+          strings: resizeStrings(state.target.strings, nextCount, { withGauges: false }, instrument),
         };
-        target.tuningPreset = detectPresetKey(nextCount, target.strings);
+        target.tuningPreset = detectPresetKey(nextCount, target.strings, instrument);
         next.target = target;
         next.targetCount = nextCount;
       }
@@ -120,10 +113,10 @@ function reducer(state, action) {
 
       const target = {
         ...state.target,
-        ...resolveScaleSettingsForCount(state.target, state.targetCount, nextCount),
-        strings: resizeStrings(state.target.strings, nextCount, { withGauges: false }),
+        ...resolveScaleSettingsForCount(state.target, state.targetCount, nextCount, instrument),
+        strings: resizeStrings(state.target.strings, nextCount, { withGauges: false }, instrument),
       };
-      target.tuningPreset = detectPresetKey(nextCount, target.strings);
+      target.tuningPreset = detectPresetKey(nextCount, target.strings, instrument);
 
       return {
         ...state,
@@ -146,7 +139,7 @@ function reducer(state, action) {
       const count = side === "reference" ? state.refCount : state.targetCount;
       if (action.value === "custom") return state;
 
-      const preset = getPresetByKey(count, action.value);
+      const preset = getPresetByKey(count, action.value, instrument);
       const sideState = state[side];
 
       return {
@@ -172,7 +165,7 @@ function reducer(state, action) {
       );
 
       const tuningPreset =
-        action.key === "midi" ? detectPresetKey(count, strings) : sideState.tuningPreset;
+        action.key === "midi" ? detectPresetKey(count, strings, instrument) : sideState.tuningPreset;
 
       return {
         ...state,
@@ -184,11 +177,11 @@ function reducer(state, action) {
       const side = action.side;
       const sideState = state[side];
       const count = side === "reference" ? state.refCount : state.targetCount;
-      const strings = transposeStrings(sideState.strings, action.direction);
+      const strings = transposeStrings(sideState.strings, action.direction, instrument);
 
       return {
         ...state,
-        [side]: { ...sideState, strings, tuningPreset: detectPresetKey(count, strings) },
+        [side]: { ...sideState, strings, tuningPreset: detectPresetKey(count, strings, instrument) },
       };
     }
 
@@ -197,16 +190,16 @@ function reducer(state, action) {
 
       return {
         ...state,
-        [action.side]: { ...sideState, strings: stepAllGauges(sideState.strings, action.direction) },
+        [action.side]: { ...sideState, strings: stepAllGauges(sideState.strings, action.direction, instrument) },
       };
     }
 
     default:
       return state;
   }
-}
+};
 
-function buildSideRows(side, count, sideState) {
+function buildSideRows(side, count, sideState, instrument) {
   const { scaleTreble, scaleBass } = resolveScaleEnds(sideState);
 
   return sideState.strings.map((stringState, index) => {
@@ -217,7 +210,7 @@ function buildSideRows(side, count, sideState) {
       gaugeInput !== undefined ? normalizeGaugeInput(gaugeInput) : null;
     const { unitWeight } =
       gaugeThousandths !== null
-        ? resolveUnitWeight(gaugeThousandths, stringState.type)
+        ? instrument.resolveUnitWeight(gaugeThousandths, stringState.type)
         : { unitWeight: 0 };
     const tensionLbs =
       gaugeThousandths !== null ? calculateTension(unitWeight, scaleLength, frequency) : 0;
@@ -243,22 +236,23 @@ function deltaToneClass(deltaLbs) {
   return Math.abs(deltaLbs) < 0.5 ? "text-[#9ca3af]" : "text-amber-400";
 }
 
-export default function TensionTranslator({ t }) {
-  const [state, dispatch] = useReducer(reducer, undefined, buildInitialState);
+export default function TensionTranslator({ t, instrument }) {
+  const reducer = useMemo(() => createReducer(instrument), [instrument]);
+  const [state, dispatch] = useReducer(reducer, instrument, buildInitialState);
 
-  const refRows = buildSideRows("reference", state.refCount, state.reference);
-  const targetRows = buildSideRows("target", state.targetCount, state.target);
+  const refRows = buildSideRows("reference", state.refCount, state.reference, instrument);
+  const targetRows = buildSideRows("target", state.targetCount, state.target, instrument);
 
   const recommendationRows = targetRows.map((targetRow) => {
     const refRow = targetRow.index < state.refCount ? refRows[targetRow.index] : null;
     const referenceTensionLbs = refRow ? refRow.tensionLbs : null;
 
     if (!refRow || !Number.isFinite(referenceTensionLbs) || referenceTensionLbs <= 0) {
-      const fallbackGauge = DEFAULT_GAUGES[state.targetCount][targetRow.index];
+      const fallbackGauge = instrument.defaultGauges[state.targetCount][targetRow.index];
       const fallbackThousandths = normalizeGaugeInput(fallbackGauge);
       const fallbackUnitWeight =
         fallbackThousandths !== null
-          ? resolveUnitWeight(fallbackThousandths, targetRow.type).unitWeight
+          ? instrument.resolveUnitWeight(fallbackThousandths, targetRow.type).unitWeight
           : 0;
       const fallbackTension = calculateTension(
         fallbackUnitWeight,
@@ -281,11 +275,12 @@ export default function TensionTranslator({ t }) {
       };
     }
 
-    const recommendation = recommendGauge({
+    const recommendation = instrument.recommendGauge({
       referenceTensionLbs,
       targetScale: targetRow.scaleLength,
       targetFrequency: targetRow.frequency,
       type: targetRow.type,
+      referenceGauge: refRow.type === targetRow.type ? refRow.gaugeThousandths : null,
     });
 
     return { targetRow, refRow, recommendation, noReference: false };
@@ -314,6 +309,7 @@ export default function TensionTranslator({ t }) {
             rows={refRows}
             withGauges
             dispatch={dispatch}
+            instrument={instrument}
             t={t}
           />
           <SidePanel
@@ -326,6 +322,7 @@ export default function TensionTranslator({ t }) {
             rows={targetRows}
             withGauges={false}
             dispatch={dispatch}
+            instrument={instrument}
             t={t}
           />
         </div>
@@ -388,9 +385,10 @@ function SidePanel({
   rows,
   withGauges,
   dispatch,
+  instrument,
   t,
 }) {
-  const presets = TUNING_PRESETS[count];
+  const presets = instrument.tuningPresets[count];
 
   return (
     <section
@@ -407,7 +405,7 @@ function SidePanel({
         <div className="col-span-2 space-y-2 lg:col-span-4">
           <p className="text-[11px] uppercase tracking-[0.18em] text-[#888]">{t.stringCount}</p>
           <div className="flex gap-1.5">
-            {STRING_COUNT_OPTIONS.map((option) => {
+            {instrument.stringCounts.map((option) => {
               const active = option === count;
               return (
                 <button
@@ -506,6 +504,7 @@ function SidePanel({
             sideKey={sideKey}
             withGauges={withGauges}
             dispatch={dispatch}
+            instrument={instrument}
             t={t}
           />
         ))}
@@ -569,7 +568,7 @@ function SideColumnHeader({ sideKey, withGauges, dispatch, t }) {
   );
 }
 
-function SideStringRow({ row, sideKey, withGauges, dispatch, t }) {
+function SideStringRow({ row, sideKey, withGauges, dispatch, instrument, t }) {
   return (
     <div className="grid grid-cols-[1.25rem_1fr_auto] items-center gap-1.5 rounded-xl border border-[#222222] bg-[#111111] px-2.5 py-2 sm:grid-cols-[1.25rem_1fr_auto_auto] sm:gap-3">
       <span className="font-mono text-xs text-[#9ca3af]">{row.stringNumber}</span>
@@ -587,7 +586,7 @@ function SideStringRow({ row, sideKey, withGauges, dispatch, t }) {
           }
           className="w-full min-w-0 flex-1 rounded-lg border border-[#2a2a2a] bg-[#0f0f0f] px-2 py-2 text-sm text-white outline-none focus:border-[#14b8a6] sm:py-1.5"
         >
-          {NOTE_OPTIONS.map((note) => (
+          {instrument.noteOptions.map((note) => (
             <option key={note.midi} value={note.midi}>
               {note.label}
             </option>
@@ -602,7 +601,7 @@ function SideStringRow({ row, sideKey, withGauges, dispatch, t }) {
               side: sideKey,
               index: row.index,
               key: "midi",
-              value: stepMidi(row.midi, direction),
+              value: stepMidi(row.midi, direction, instrument),
             })
           }
         />
@@ -612,7 +611,7 @@ function SideStringRow({ row, sideKey, withGauges, dispatch, t }) {
           <input
             type="number"
             inputMode="decimal"
-            step={gaugeStepForString(row.index)}
+            step={instrument.gaugeStep(row.index)}
             value={row.gaugeInput}
             onChange={(event) =>
               dispatch({
@@ -634,7 +633,7 @@ function SideStringRow({ row, sideKey, withGauges, dispatch, t }) {
                 side: sideKey,
                 index: row.index,
                 key: "gaugeInput",
-                value: stepGaugeInput(row.gaugeInput, direction, row.index),
+                value: stepGaugeInput(row.gaugeInput, direction, row.index, instrument),
               })
             }
           />

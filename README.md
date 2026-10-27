@@ -14,6 +14,10 @@ Per-string tension breakdown with treble/bass/total/imbalance summary. Pick stri
 
 Translate the feel of one guitar to another. Enter the **reference** guitar (count, scales, tunings, gauges, types) and the **target** guitar (scales, tunings, types — gauges are recommended). For each target string the app picks the gauge whose tension comes closest to the reference's tension. Recommendations prefer tabulated D'Addario gauges; the algorithm falls back to a continuous power-law estimate only when the desired tension sits outside the tabulated range.
 
+### Bass
+
+A Guitar/Bass switch in the top bar runs both modes for 4/5/6-string basses. Defaults follow Dingwall long-scale basses (5-string 34–37″, 4-string 34–36.25″, 6-string 33.25–37″) and Dingwall's nickel-plated sets. Wound unit weights are a blended estimate (about ±5%): the geometric mean of smooth fits to Kalium's published unit weights and D'Addario's (guitar table plus bass values derived from official per-string tensions). Translation Guide recommendations use the gauges Kalium sells as single strings. Guitar mode is unaffected.
+
 ## Formula
 
 ```

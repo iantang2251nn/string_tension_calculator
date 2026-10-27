@@ -1,16 +1,10 @@
-import React, { useReducer } from "react";
+import React, { useMemo, useReducer } from "react";
 import {
-  STRING_COUNT_OPTIONS,
-  DEFAULT_PRESET_BY_COUNT,
-  DEFAULT_SCALE_BY_COUNT,
-  NOTE_OPTIONS,
-  TUNING_PRESETS,
   buildStringsForCount,
   calculateTension,
   detectPresetKey,
   formatGaugeDisplay,
   formatNumber,
-  gaugeStepForString,
   getPresetByKey,
   interpolateScale,
   midiToFrequency,
@@ -19,7 +13,6 @@ import {
   normalizeGaugeInput,
   resolveScaleEnds,
   resolveScaleSettingsForCount,
-  resolveUnitWeight,
   stepAllGauges,
   stepGaugeInput,
   stepMidi,
@@ -27,26 +20,28 @@ import {
   toKg,
 } from "./src/lib/tension.js";
 
-function buildInitialState() {
+function buildInitialState(instrument) {
+  const count = instrument.defaultCount;
+
   return {
-    stringCount: 6,
-    ...DEFAULT_SCALE_BY_COUNT[6],
-    tuningPreset: DEFAULT_PRESET_BY_COUNT[6],
-    strings: buildStringsForCount(6),
+    stringCount: count,
+    ...instrument.defaultScaleByCount[count],
+    tuningPreset: instrument.defaultPresetByCount[count],
+    strings: buildStringsForCount(count, instrument),
   };
 }
 
-function reducer(state, action) {
+const createReducer = (instrument) => function reducer(state, action) {
   switch (action.type) {
     case "setStringCount": {
       const nextCount = action.value;
 
       return {
         ...state,
-        ...resolveScaleSettingsForCount(state, state.stringCount, nextCount),
+        ...resolveScaleSettingsForCount(state, state.stringCount, nextCount, instrument),
         stringCount: nextCount,
-        tuningPreset: DEFAULT_PRESET_BY_COUNT[nextCount],
-        strings: buildStringsForCount(nextCount),
+        tuningPreset: instrument.defaultPresetByCount[nextCount],
+        strings: buildStringsForCount(nextCount, instrument),
       };
     }
 
@@ -61,7 +56,7 @@ function reducer(state, action) {
         return state;
       }
 
-      const preset = getPresetByKey(state.stringCount, action.value);
+      const preset = getPresetByKey(state.stringCount, action.value, instrument);
 
       return {
         ...state,
@@ -79,7 +74,7 @@ function reducer(state, action) {
       );
 
       const tuningPreset =
-        action.key === "midi" ? detectPresetKey(state.stringCount, strings) : state.tuningPreset;
+        action.key === "midi" ? detectPresetKey(state.stringCount, strings, instrument) : state.tuningPreset;
 
       return {
         ...state,
@@ -89,27 +84,43 @@ function reducer(state, action) {
     }
 
     case "transposeAll": {
-      const strings = transposeStrings(state.strings, action.direction);
+      const strings = transposeStrings(state.strings, action.direction, instrument);
 
       return {
         ...state,
         strings,
-        tuningPreset: detectPresetKey(state.stringCount, strings),
+        tuningPreset: detectPresetKey(state.stringCount, strings, instrument),
       };
     }
 
     case "stepAllGauges":
       return {
         ...state,
-        strings: stepAllGauges(state.strings, action.direction),
+        strings: stepAllGauges(state.strings, action.direction, instrument),
       };
 
     default:
       return state;
   }
-}
+};
 
 function summarySplit(row, stringCount) {
+  if (stringCount === 4) {
+    return row.index < 2 ? { treble: row.tensionLbs, bass: 0 } : { treble: 0, bass: row.tensionLbs };
+  }
+
+  if (stringCount === 5) {
+    if (row.index < 2) {
+      return { treble: row.tensionLbs, bass: 0 };
+    }
+
+    if (row.index === 2) {
+      return { treble: row.tensionLbs / 2, bass: row.tensionLbs / 2 };
+    }
+
+    return { treble: 0, bass: row.tensionLbs };
+  }
+
   if (stringCount === 6) {
     return row.index < 3 ? { treble: row.tensionLbs, bass: 0 } : { treble: 0, bass: row.tensionLbs };
   }
@@ -210,8 +221,9 @@ function ScaleInput({ label, value, onChange }) {
   );
 }
 
-export default function StringTensionCalculator({ t }) {
-  const [state, dispatch] = useReducer(reducer, undefined, buildInitialState);
+export default function StringTensionCalculator({ t, instrument }) {
+  const reducer = useMemo(() => createReducer(instrument), [instrument]);
+  const [state, dispatch] = useReducer(reducer, instrument, buildInitialState);
 
   const { scaleTreble, scaleBass } = resolveScaleEnds(state);
 
@@ -219,7 +231,7 @@ export default function StringTensionCalculator({ t }) {
     const scaleLength = interpolateScale(index, state.stringCount, scaleTreble, scaleBass);
     const frequency = midiToFrequency(stringState.midi);
     const gaugeThousandths = normalizeGaugeInput(stringState.gaugeInput);
-    const { unitWeight, source } = resolveUnitWeight(gaugeThousandths, stringState.type);
+    const { unitWeight, source } = instrument.resolveUnitWeight(gaugeThousandths, stringState.type);
     const tensionLbs = calculateTension(unitWeight, scaleLength, frequency);
     const tensionKg = toKg(tensionLbs);
 
@@ -278,7 +290,7 @@ export default function StringTensionCalculator({ t }) {
           <div className="space-y-3">
             <p className="text-xs uppercase tracking-[0.18em] text-[#888]">{t.stringCount}</p>
             <div className="flex gap-2">
-              {STRING_COUNT_OPTIONS.map((count) => {
+              {instrument.stringCounts.map((count) => {
                 const active = count === state.stringCount;
 
                 return (
@@ -343,7 +355,7 @@ export default function StringTensionCalculator({ t }) {
               onChange={(event) => dispatch({ type: "setTuningPreset", value: event.target.value })}
               className="w-full rounded-2xl border border-[#2a2a2a] bg-[#111111] px-3 py-3 text-base text-white outline-none transition focus:border-[#14b8a6] sm:py-2 sm:text-sm"
             >
-              {TUNING_PRESETS[state.stringCount].map((preset) => (
+              {instrument.tuningPresets[state.stringCount].map((preset) => (
                 <option key={preset.key} value={preset.key}>
                   {preset.label}
                 </option>
@@ -424,7 +436,7 @@ export default function StringTensionCalculator({ t }) {
                               }
                               className="w-[4.5rem] rounded-xl border border-[#2a2a2a] bg-[#111111] px-2 py-3 text-sm text-white outline-none transition focus:border-[#14b8a6] sm:w-20 sm:px-2.5 sm:py-2"
                             >
-                              {NOTE_OPTIONS.map((note) => (
+                              {instrument.noteOptions.map((note) => (
                                 <option key={note.midi} value={note.midi}>
                                   {note.label}
                                 </option>
@@ -438,7 +450,7 @@ export default function StringTensionCalculator({ t }) {
                                   type: "setStringField",
                                   index: row.index,
                                   key: "midi",
-                                  value: stepMidi(row.midi, direction),
+                                  value: stepMidi(row.midi, direction, instrument),
                                 })
                               }
                             />
@@ -451,7 +463,7 @@ export default function StringTensionCalculator({ t }) {
                           <input
                             type="number"
                             inputMode="decimal"
-                            step={gaugeStepForString(row.index)}
+                            step={instrument.gaugeStep(row.index)}
                             value={row.gaugeInput}
                             onChange={(event) =>
                               dispatch({
@@ -471,7 +483,7 @@ export default function StringTensionCalculator({ t }) {
                                 type: "setStringField",
                                 index: row.index,
                                 key: "gaugeInput",
-                                value: stepGaugeInput(row.gaugeInput, direction, row.index),
+                                value: stepGaugeInput(row.gaugeInput, direction, row.index, instrument),
                               })
                             }
                           />
