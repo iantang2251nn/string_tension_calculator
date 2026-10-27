@@ -74,7 +74,7 @@ const STRINGS = {
         "Multiscale calculation supported. Bass unit weights blend Kalium and D'Addario data (estimate, ±5%).",
       breakdownNote: "Wound unit weights come from a blended Kalium + D'Addario curve (±5%).",
       recNote:
-        "Picks the closest gauge Kalium sells as a single string, using the blended bass unit weights (±5%); falls back to a continuous estimate outside that range.",
+        "Picks the closest gauge from Kalium singles, Dingwall and D'Addario bass sets, or the reference string's own gauge, using the blended bass unit weights (±5%); falls back to a continuous estimate outside that range.",
     },
   },
   zh: {
@@ -133,7 +133,7 @@ const STRINGS = {
       calcSubtitle: "支持扇品计算。贝斯单位重量综合 Kalium 与达达里奥数据（估算，±5%）。",
       breakdownNote: "缠弦单位重量来自 Kalium 与达达里奥数据的综合曲线（±5%）。PL = 裸弦，NW = 镍缠弦。",
       recNote:
-        "在 Kalium 单根弦规格中选取最接近的规格，基于综合贝斯单位重量（±5%）；超出范围时改用连续估算。PL = 裸弦，NW = 镍缠弦。",
+        "从 Kalium 单根弦、Dingwall 与达达里奥贝斯套弦规格及参考弦本身的规格中选取最接近者，基于综合贝斯单位重量（±5%）；超出范围时改用连续估算。PL = 裸弦，NW = 镍缠弦。",
     },
   },
 };

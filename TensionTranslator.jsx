@@ -280,6 +280,7 @@ export default function TensionTranslator({ t, instrument }) {
       targetScale: targetRow.scaleLength,
       targetFrequency: targetRow.frequency,
       type: targetRow.type,
+      referenceGauge: refRow.type === targetRow.type ? refRow.gaugeThousandths : null,
     });
 
     return { targetRow, refRow, recommendation, noReference: false };

@@ -495,6 +495,11 @@ const BASS_WOUND_GAUGES = [
   226, 236, 246, 256, 266,
 ];
 
+// Gauges in Dingwall's long/medium-scale sets and D'Addario's XL nickel bass sets (EXL170/165/160/190/220, -5/-6).
+const BASS_SET_GAUGES = [30, 32, 40, 45, 50, 55, 58, 60, 65, 70, 75, 80, 85, 95, 98, 100, 105, 127, 130, 135, 170];
+
+const BASS_CANDIDATE_GAUGES = [...new Set([...BASS_WOUND_GAUGES, ...BASS_SET_GAUGES])].sort((a, b) => a - b);
+
 // Blended wound-string unit weight: geometric mean of smooth fits (ln UW = a + b ln g + c ln^2 g, g in inches) to
 // Kalium's published unit weights (.021-.266) and D'Addario's (guitar NW table + XL bass values derived from official
 // per-string tensions, .017-.135). Above .135 the Kalium curve is used with the brand gap held at its .135 value.
@@ -531,7 +536,7 @@ export function resolveBassUnitWeight(gaugeThousandths, type) {
   return { unitWeight: bassWoundUnitWeight(gaugeThousandths / 1000), source: "estimate" };
 }
 
-export function recommendBassGauge({ referenceTensionLbs, targetScale, targetFrequency, type }) {
+export function recommendBassGauge({ referenceTensionLbs, targetScale, targetFrequency, type, referenceGauge }) {
   if (type === "PL") {
     return recommendGauge({ referenceTensionLbs, targetScale, targetFrequency, type });
   }
@@ -547,8 +552,13 @@ export function recommendBassGauge({ referenceTensionLbs, targetScale, targetFre
     return null;
   }
 
+  // The reference string's own gauge is always a candidate, so an identical setup recommends the same gauge.
+  const candidates = Number.isFinite(referenceGauge)
+    ? [...new Set([...BASS_CANDIDATE_GAUGES, referenceGauge])].sort((a, b) => a - b)
+    : BASS_CANDIDATE_GAUGES;
+
   let best = null;
-  for (const gauge of BASS_WOUND_GAUGES) {
+  for (const gauge of candidates) {
     const unitWeight = bassWoundUnitWeight(gauge / 1000);
     const tensionLbs = calculateTension(unitWeight, targetScale, targetFrequency);
     const deltaLbs = tensionLbs - referenceTensionLbs;
@@ -558,7 +568,7 @@ export function recommendBassGauge({ referenceTensionLbs, targetScale, targetFre
     }
   }
 
-  const atEdge = best.gauge === BASS_WOUND_GAUGES[0] || best.gauge === BASS_WOUND_GAUGES[BASS_WOUND_GAUGES.length - 1];
+  const atEdge = best.gauge === candidates[0] || best.gauge === candidates[candidates.length - 1];
 
   if (atEdge && Math.abs(best.deltaLbs) > 1) {
     // Solve the blended curve for the exact gauge (it increases monotonically with gauge).
